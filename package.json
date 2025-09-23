@@ -1,0 +1,43 @@
+{
+  "name": "unisafe",
+  "version": "1.0.0",
+  "description": "Plataforma colaborativa de segurança para comunidades universitárias",
+  "main": "backend/server.js",
+  "scripts": {
+    "install:all": "npm run install:frontend && npm run install:backend",
+    "install:frontend": "cd frontend && npm install",
+    "install:backend": "cd backend && npm install",
+    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "dev:frontend": "cd frontend && npm run dev",
+    "dev:backend": "cd backend && npm run dev",
+    "start": "npm run start:backend",
+    "start:frontend": "cd frontend && npm start",
+    "start:backend": "cd backend && npm start",
+    "build": "cd frontend && npm run build",
+    "setup:db": "mysql -u root -p < database/criar_banco.sql",
+    "seed:db": "mysql -u root -p < database/dados_exemplo.sql"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/unisafe/unisafe.git"
+  },
+  "keywords": [
+    "seguranca",
+    "universidade",
+    "comunidade",
+    "react",
+    "nextjs",
+    "nodejs",
+    "express",
+    "mysql"
+  ],
+  "author": "UniSafe Team",
+  "license": "MIT",
+  "engines": {
+    "node": ">=16.0.0",
+    "npm": ">=7.0.0"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.0"
+  }
+}

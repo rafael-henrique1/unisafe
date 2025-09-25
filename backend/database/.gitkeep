@@ -1,0 +1,3 @@
+# Esta pasta contém o banco de dados SQLite do projeto UniSafe
+# O arquivo .gitkeep garante que esta pasta seja incluída no repositório
+# O banco será criado automaticamente quando o servidor for executado

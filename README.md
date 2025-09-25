@@ -250,7 +250,26 @@ Este projeto foi desenvolvido para a comunidade universitária. Contribuições 
 
 Este projeto está sob a licença MIT. Veja o arquivo [LICENSE](LICENSE) para mais detalhes.
 
-## 📞 Suporte
+## � Troubleshooting
+
+### Erro: "unable to open database file"
+
+**Problema**: O servidor backend não consegue conectar com o banco SQLite.
+
+**Solução**: 
+1. Verifique se a pasta `backend/database/` existe
+2. Se não existir, crie-a manualmente ou use: `mkdir backend/database`
+3. O arquivo `unisafe.db` será criado automaticamente quando o servidor iniciar
+
+**Causa**: A pasta database não existia, impedindo o SQLite de criar o arquivo do banco.
+
+### Porta já em uso
+
+Se a porta 5000 (backend) ou 3000 (frontend) estiver em uso:
+- **Backend**: Altere a variável `PORT` no arquivo `.env`
+- **Frontend**: O Next.js tentará automaticamente a próxima porta disponível
+
+## �📞 Suporte
 
 Para suporte e dúvidas:
 - 📧 Email: suporte@unisafe.dev

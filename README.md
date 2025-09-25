@@ -24,7 +24,7 @@ O **UniSafe** é uma plataforma que permite a qualquer comunidade:
 ### Backend
 - **Node.js** - Runtime JavaScript no servidor
 - **Express.js** - Framework web para Node.js
-- **MySQL** - Banco de dados relacional
+- **SQLite** - Banco de dados relacional embarcado
 - **JWT** - Autenticação via JSON Web Tokens
 - **bcrypt** - Criptografia de senhas
 
@@ -44,10 +44,10 @@ UniSafe/
 ├── backend/           # API Express.js
 │   ├── routes/        # Rotas da API
 │   ├── config/        # Configurações
+│   ├── database/      # Banco de dados SQLite
+│   │   └── unisafe.db # Arquivo do banco SQLite
 │   └── server.js      # Servidor principal
-└── database/          # Scripts SQL
-    ├── criar_banco.sql
-    └── dados_exemplo.sql
+└── README.md          # Documentação do projeto
 ```
 
 ## 🚀 Como Executar o Projeto
@@ -55,20 +55,19 @@ UniSafe/
 ### Pré-requisitos
 
 - **Node.js** (versão 16 ou superior)
-- **MySQL** (versão 5.7 ou superior)
 - **npm** ou **yarn**
 
-### Passo 1: Configurar o Banco de Dados
+### Passo 1: Instalar Dependências
 
-1. Instale e configure o MySQL em seu sistema
-2. Execute o script de criação do banco:
+1. Clone o repositório e instale as dependências:
 ```bash
-mysql -u root -p < database/criar_banco.sql
-```
+# Instalar dependências do projeto
+npm install
 
-3. (Opcional) Insira dados de exemplo:
-```bash
-mysql -u root -p < database/dados_exemplo.sql
+# Instalar dependências do backend
+cd backend
+npm install
+
 ```
 
 ### Passo 2: Configurar o Backend
@@ -197,12 +196,9 @@ O projeto inclui usuários e postagens de exemplo para facilitar testes:
 NODE_ENV=development
 PORT=5000
 JWT_SECRET=sua_chave_secreta_jwt
-DB_HOST=localhost
-DB_PORT=3306
-DB_NAME=unisafe_db
-DB_USER=root
-DB_PASSWORD=sua_senha_mysql
 ```
+
+**Nota**: O projeto utiliza SQLite como banco de dados, que é criado automaticamente em `backend/database/unisafe.db`. Não há necessidade de configurações adicionais de banco de dados.
 
 ### Scripts Disponíveis
 
@@ -223,7 +219,7 @@ DB_PASSWORD=sua_senha_mysql
 - [x] CRUD de postagens
 - [x] Sistema de curtidas
 - [x] Interface responsiva
-- [x] Conexão com MySQL
+- [x] Conexão com SQLite
 - [x] API RESTful completa
 
 ### 🚧 Em Desenvolvimento

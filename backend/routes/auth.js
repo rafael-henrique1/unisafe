@@ -27,12 +27,12 @@ router.post('/cadastro', [
   // Validações dos campos para usuários da comunidade
   body('nome').notEmpty().withMessage('Nome completo é obrigatório')
     .isLength({ min: 2 }).withMessage('Nome deve ter pelo menos 2 caracteres')
-    .matches(/^[A-Za-zÀ-ÿ\s]+$/).withMessage('Nome deve conter apenas letras e espaços'),
+    .matches(/^[a-zA-Z\s\u00C0-\u017F]+$/).withMessage('Nome deve conter apenas letras e espaços'),
   body('email').isEmail().withMessage('Email inválido')
     .normalizeEmail(),
   body('senha').isLength({ min: 8 }).withMessage('Senha deve ter pelo menos 8 caracteres')
     .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/).withMessage('Senha deve conter pelo menos: 1 letra maiúscula, 1 minúscula e 1 número'),
-  body('telefone').optional().isMobilePhone('pt-BR').withMessage('Telefone inválido')
+  body('telefone').optional().matches(/^(\(\d{2}\)\s?)?\d{4,5}-?\d{4}$|^\d{10,11}$/).withMessage('Telefone inválido')
 ], async (req, res) => {
   try {
     // Verifica se há erros de validação
@@ -56,12 +56,12 @@ router.post('/cadastro', [
     }
 
     // Verifica se o email já está cadastrado
-    const emailExistente = await db.query(
+    const emailExistente = await db.get(
       'SELECT id FROM usuarios WHERE email = ?',
       [email]
     )
 
-    if (emailExistente.length > 0) {
+    if (emailExistente) {
       return res.status(409).json({
         success: false,
         message: 'Este email já está em uso na comunidade'
@@ -73,8 +73,19 @@ router.post('/cadastro', [
 
     // Insere o novo usuário no banco
     const resultado = await db.query(
-      'INSERT INTO usuarios (nome, email, senha, telefone, criado_em) VALUES (?, ?, ?, ?, NOW())',
+      'INSERT INTO usuarios (nome, email, senha, telefone) VALUES (?, ?, ?, ?)',
       [nome, email, senhaHash, telefone || null]
+    )
+
+    // Gera token JWT para o novo usuário
+    const token = jwt.sign(
+      { 
+        id: resultado.lastID, 
+        email: email,
+        nome: nome 
+      },
+      JWT_SECRET,
+      { expiresIn: '7d' }
     )
 
     console.log(`[CADASTRO] Novo membro da comunidade: ${email}`)
@@ -83,9 +94,12 @@ router.post('/cadastro', [
       success: true,
       message: 'Bem-vindo à comunidade UniSafe!',
       data: {
-        id: resultado.insertId,
-        nome,
-        email
+        token,
+        usuario: {
+          id: resultado.lastID,
+          nome,
+          email
+        }
       }
     })
 
@@ -120,19 +134,17 @@ router.post('/login', [
     const { email, senha } = req.body
 
     // Busca o usuário no banco
-    const usuarios = await db.query(
+    const usuario = await db.get(
       'SELECT id, nome, email, senha, criado_em FROM usuarios WHERE email = ?',
       [email]
     )
 
-    if (usuarios.length === 0) {
+    if (!usuario) {
       return res.status(401).json({
         success: false,
         message: 'Email ou senha incorretos'
       })
     }
-
-    const usuario = usuarios[0]
 
     // Verifica a senha
     const senhaValida = await bcrypt.compare(senha, usuario.senha)

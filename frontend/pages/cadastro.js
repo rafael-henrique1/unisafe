@@ -94,7 +94,7 @@ export default function Cadastro() {
 
     try {
       // Aqui será feita a chamada para a API de cadastro
-      const response = await fetch('/api/cadastro', {
+      const response = await fetch('http://localhost:5000/api/auth/cadastro', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -103,14 +103,29 @@ export default function Cadastro() {
       })
 
       if (response.ok) {
-        const data = await response.json()
-        setSuccess('Conta criada com sucesso! Redirecionando...')
-        setTimeout(() => {
-          router.push('/login')
-        }, 2000)
+        const result = await response.json()
+        if (result.success && result.data.token) {
+          // Salva o token do usuário recém-criado
+          localStorage.setItem('unisafe_token', result.data.token)
+          localStorage.setItem('unisafe_user', JSON.stringify(result.data.usuario))
+          setSuccess('Conta criada com sucesso! Redirecionando...')
+          setTimeout(() => {
+            router.push('/feed')
+          }, 1500)
+        } else {
+          setSuccess('Conta criada com sucesso! Redirecionando para login...')
+          setTimeout(() => {
+            router.push('/login')
+          }, 2000)
+        }
       } else {
-        const errorData = await response.json()
-        setError(errorData.message || 'Erro ao criar conta')
+        const errorData = await response.json().catch(() => ({}))
+        if (errorData.errors && errorData.errors.length > 0) {
+          // Mostra o primeiro erro de validação específico
+          setError(errorData.errors[0].msg)
+        } else {
+          setError(errorData.message || 'Erro ao criar conta')
+        }
       }
     } catch (err) {
       setError('Erro ao conectar com o servidor')

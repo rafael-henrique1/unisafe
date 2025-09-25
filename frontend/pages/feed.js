@@ -26,13 +26,23 @@ export default function Feed() {
    */
   const carregarPostagens = async () => {
     try {
-      const response = await fetch('/api/postagens')
+      const response = await fetch('http://localhost:5000/api/postagens')
       if (response.ok) {
-        const data = await response.json()
-        setPostagens(data)
+        const result = await response.json()
+        console.log('API Response:', result) // Debug
+        if (result.success && Array.isArray(result.data)) {
+          setPostagens(result.data)
+        } else {
+          console.error('Formato de resposta inválido:', result)
+          setPostagens([])
+        }
+      } else {
+        console.error('Erro na resposta:', response.status)
+        setPostagens([])
       }
     } catch (error) {
       console.error('Erro ao carregar postagens:', error)
+      setPostagens([])
     } finally {
       setLoading(false)
     }
@@ -48,10 +58,14 @@ export default function Feed() {
 
     setEnviandoPost(true)
     try {
-      const response = await fetch('/api/postagens', {
+      // Pega o token do localStorage (se houver)
+      const token = localStorage.getItem('unisafe_token')
+      
+      const response = await fetch('http://localhost:5000/api/postagens', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          ...(token && { 'Authorization': `Bearer ${token}` })
         },
         body: JSON.stringify({
           conteudo: novaPostagem,
@@ -60,12 +74,28 @@ export default function Feed() {
       })
 
       if (response.ok) {
-        setNovaPostagem('')
-        setTipoPostagem('aviso')
-        carregarPostagens() // Recarrega o feed
+        const result = await response.json()
+        if (result.success) {
+          setNovaPostagem('')
+          setTipoPostagem('aviso')
+          carregarPostagens() // Recarrega o feed
+          // Feedback visual de sucesso
+          alert('Postagem criada com sucesso!')
+        } else {
+          alert('Erro ao criar postagem: ' + result.message)
+        }
+      } else {
+        const errorData = await response.json().catch(() => ({}))
+        if (response.status === 401) {
+          alert('Você precisa fazer login para criar postagens')
+          window.location.href = '/login'
+        } else {
+          alert('Erro ao criar postagem: ' + (errorData.message || 'Erro desconhecido'))
+        }
       }
     } catch (error) {
       console.error('Erro ao enviar postagem:', error)
+      alert('Erro de conexão. Verifique sua internet.')
     } finally {
       setEnviandoPost(false)
     }
@@ -107,10 +137,22 @@ export default function Feed() {
                 <h1 className="text-2xl font-bold text-primary-700 cursor-pointer">UniSafe</h1>
               </Link>
               <nav className="flex items-center space-x-4">
-                <span className="text-gray-700">Bem-vindo!</span>
-                <Link href="/login" className="text-primary-600 hover:text-primary-800">
+                <span className="text-gray-700">
+                  {typeof window !== 'undefined' && localStorage.getItem('unisafe_user') ? 
+                    `Olá, ${JSON.parse(localStorage.getItem('unisafe_user')).nome}!` : 
+                    'Bem-vindo!'
+                  }
+                </span>
+                <button 
+                  onClick={() => {
+                    localStorage.removeItem('unisafe_token')
+                    localStorage.removeItem('unisafe_user')
+                    window.location.href = '/login'
+                  }}
+                  className="text-primary-600 hover:text-primary-800"
+                >
                   Sair
-                </Link>
+                </button>
               </nav>
             </div>
           </div>
@@ -190,7 +232,7 @@ export default function Feed() {
               </div>
             ) : (
               // Lista de postagens
-              postagens.map((postagem, index) => (
+              Array.isArray(postagens) ? postagens.map((postagem, index) => (
                 <div key={index} className="bg-white rounded-lg shadow-md p-6">
                   {/* Header da postagem */}
                   <div className="flex items-center justify-between mb-3">
@@ -235,7 +277,11 @@ export default function Feed() {
                     </button>
                   </div>
                 </div>
-              ))
+              )) : (
+                <div className="text-center py-8 text-red-600">
+                  Erro ao carregar postagens
+                </div>
+              )
             )}
           </div>
         </main>

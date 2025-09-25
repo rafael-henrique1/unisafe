@@ -7,7 +7,7 @@
  * Funcionalidades principais:
  * - Autenticação de usuários (login/cadastro)
  * - Gerenciamento de postagens de segurança
- * - Conexão com banco de dados MySQL
+ * - Conexão com banco de dados SQLite
  * - Middlewares de segurança e CORS
  */
 

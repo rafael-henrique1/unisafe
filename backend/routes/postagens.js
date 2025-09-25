@@ -54,11 +54,12 @@ router.get('/', async (req, res) => {
     let query = `
       SELECT 
         p.id,
+        p.titulo,
         p.conteudo,
-        p.tipo,
+        p.categoria,
+        p.localizacao,
         p.criado_em,
         u.nome as usuario_nome,
-        u.curso as usuario_curso,
         COUNT(c.id) as total_curtidas,
         (SELECT COUNT(*) FROM comentarios co WHERE co.postagem_id = p.id) as total_comentarios
       FROM postagens p
@@ -68,9 +69,9 @@ router.get('/', async (req, res) => {
 
     const params = []
 
-    // Filtra por tipo se especificado
+    // Filtra por categoria se especificado
     if (tipo) {
-      query += ' WHERE p.tipo = ?'
+      query += ' WHERE p.categoria = ?'
       params.push(tipo)
     }
 
@@ -88,10 +89,11 @@ router.get('/', async (req, res) => {
     // Formata as postagens para o frontend
     const postagensFormatadas = postagens.map(postagem => ({
       id: postagem.id,
+      titulo: postagem.titulo,
       conteudo: postagem.conteudo,
-      tipo: postagem.tipo,
+      categoria: postagem.categoria,
+      localizacao: postagem.localizacao,
       usuario: postagem.usuario_nome,
-      curso: postagem.usuario_curso,
       data: formatarData(postagem.criado_em),
       curtidas: parseInt(postagem.total_curtidas),
       comentarios: parseInt(postagem.total_comentarios)
@@ -140,8 +142,8 @@ router.post('/', verificarAuth, [
 
     // Insere a nova postagem
     const resultado = await db.query(
-      'INSERT INTO postagens (usuario_id, conteudo, tipo, criado_em) VALUES (?, ?, ?, NOW())',
-      [usuarioId, conteudo, tipo]
+      'INSERT INTO postagens (usuario_id, titulo, conteudo, categoria) VALUES (?, ?, ?, ?)',
+      [usuarioId, conteudo.substring(0, 50) + '...', conteudo, tipo]
     )
 
     console.log(`[NOVA POSTAGEM] Usuário ${req.usuario.email} criou postagem tipo: ${tipo}`)
@@ -150,9 +152,9 @@ router.post('/', verificarAuth, [
       success: true,
       message: 'Postagem criada com sucesso!',
       data: {
-        id: resultado.insertId,
+        id: resultado.lastID,
         conteudo,
-        tipo,
+        categoria: tipo,
         usuario: req.usuario.nome,
         criado_em: new Date().toISOString()
       }

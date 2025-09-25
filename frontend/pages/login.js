@@ -41,7 +41,7 @@ export default function Login() {
 
     try {
       // Aqui será feita a chamada para a API de login
-      const response = await fetch('/api/login', {
+      const response = await fetch('http://localhost:5000/api/auth/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -50,12 +50,19 @@ export default function Login() {
       })
 
       if (response.ok) {
-        const data = await response.json()
-        // Armazena o token de autenticação (será implementado com localStorage/cookies)
-        console.log('Login realizado com sucesso:', data)
-        router.push('/feed') // Redireciona para o feed após login
+        const result = await response.json()
+        if (result.success && result.data.token) {
+          // Salva o token no localStorage
+          localStorage.setItem('unisafe_token', result.data.token)
+          localStorage.setItem('unisafe_user', JSON.stringify(result.data.usuario))
+          console.log('Login realizado com sucesso:', result)
+          router.push('/feed') // Redireciona para o feed após login
+        } else {
+          setError('Erro na resposta do servidor')
+        }
       } else {
-        setError('Email ou senha inválidos')
+        const errorData = await response.json().catch(() => ({}))
+        setError(errorData.message || 'Email ou senha inválidos')
       }
     } catch (err) {
       setError('Erro ao conectar com o servidor')

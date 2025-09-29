@@ -72,3 +72,10 @@ public/uploads/
 # Arquivos sensíveis
 config/secrets.js
 secrets/
+
+# Scripts de teste e desenvolvimento
+**/inserir_dados_teste.js
+**/seed_data.js
+**/test_data.js
+**/*_teste.js
+**/*_test_data.js

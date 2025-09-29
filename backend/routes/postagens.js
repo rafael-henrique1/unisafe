@@ -56,7 +56,7 @@ router.get('/', async (req, res) => {
         p.id,
         p.titulo,
         p.conteudo,
-        p.categoria,
+        p.categoria as tipo,
         p.localizacao,
         p.criado_em,
         u.nome as usuario_nome,
@@ -65,18 +65,19 @@ router.get('/', async (req, res) => {
       FROM postagens p
       LEFT JOIN usuarios u ON p.usuario_id = u.id
       LEFT JOIN curtidas c ON p.id = c.postagem_id
+      WHERE p.ativo = 1
     `
 
     const params = []
 
     // Filtra por categoria se especificado
     if (tipo) {
-      query += ' WHERE p.categoria = ?'
+      query += ' AND p.categoria = ?'
       params.push(tipo)
     }
 
     query += `
-      GROUP BY p.id
+      GROUP BY p.id, p.titulo, p.conteudo, p.categoria, p.localizacao, p.criado_em, u.nome
       ORDER BY p.criado_em DESC
       LIMIT ? OFFSET ?
     `
@@ -91,12 +92,12 @@ router.get('/', async (req, res) => {
       id: postagem.id,
       titulo: postagem.titulo,
       conteudo: postagem.conteudo,
-      categoria: postagem.categoria,
+      tipo: postagem.tipo,
       localizacao: postagem.localizacao,
       usuario: postagem.usuario_nome,
       data: formatarData(postagem.criado_em),
-      curtidas: parseInt(postagem.total_curtidas),
-      comentarios: parseInt(postagem.total_comentarios)
+      curtidas: parseInt(postagem.total_curtidas) || 0,
+      comentarios: parseInt(postagem.total_comentarios) || 0
     }))
 
     res.json({
@@ -280,7 +281,7 @@ router.post('/:id/curtir', verificarAuth, async (req, res) => {
     } else {
       // Adiciona a curtida
       await db.query(
-        'INSERT INTO curtidas (postagem_id, usuario_id, criado_em) VALUES (?, ?, NOW())',
+        'INSERT INTO curtidas (postagem_id, usuario_id, criado_em) VALUES (?, ?, datetime("now"))',
         [id, usuarioId]
       )
       
@@ -296,6 +297,148 @@ router.post('/:id/curtir', verificarAuth, async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Erro ao processar curtida'
+    })
+  }
+})
+
+/**
+ * POST /api/postagens/:id/comentarios
+ * Adiciona um comentário a uma postagem
+ */
+router.post('/:id/comentarios', verificarAuth, [
+  body('conteudo')
+    .trim()
+    .isLength({ min: 1, max: 500 })
+    .withMessage('Comentário deve ter entre 1 e 500 caracteres')
+], async (req, res) => {
+  try {
+    console.log(`[${new Date().toISOString()}] POST /api/postagens/${req.params.id}/comentarios`)
+
+    // Verifica erros de validação
+    const errors = validationResult(req)
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Dados inválidos',
+        errors: errors.array()
+      })
+    }
+
+    const { id } = req.params
+    const { conteudo } = req.body
+    const usuarioId = req.usuario.id
+
+    // Verifica se a postagem existe
+    const postagens = await db.query('SELECT id FROM postagens WHERE id = ?', [id])
+    if (postagens.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Postagem não encontrada'
+      })
+    }
+
+    // Insere o comentário
+    const resultado = await db.query(
+      'INSERT INTO comentarios (postagem_id, usuario_id, conteudo, criado_em) VALUES (?, ?, ?, datetime("now"))',
+      [id, usuarioId, conteudo]
+    )
+
+    // Busca o comentário criado com dados do usuário
+    const novoComentario = await db.query(`
+      SELECT 
+        c.id,
+        c.conteudo,
+        c.criado_em,
+        u.nome as usuario_nome
+      FROM comentarios c
+      LEFT JOIN usuarios u ON c.usuario_id = u.id
+      WHERE c.id = ?
+    `, [resultado.lastID])
+
+    res.status(201).json({
+      success: true,
+      message: 'Comentário adicionado com sucesso',
+      data: {
+        id: novoComentario[0].id,
+        conteudo: novoComentario[0].conteudo,
+        usuario: novoComentario[0].usuario_nome,
+        data: formatarData(novoComentario[0].criado_em)
+      }
+    })
+
+  } catch (error) {
+    console.error('[ERRO ADICIONAR COMENTARIO]', error)
+    res.status(500).json({
+      success: false,
+      message: 'Erro ao adicionar comentário'
+    })
+  }
+})
+
+/**
+ * GET /api/postagens/:id/comentarios
+ * Lista comentários de uma postagem
+ */
+router.get('/:id/comentarios', async (req, res) => {
+  try {
+    console.log(`[${new Date().toISOString()}] GET /api/postagens/${req.params.id}/comentarios`)
+
+    const { id } = req.params
+    const pagina = parseInt(req.query.pagina) || 1
+    const limite = parseInt(req.query.limite) || 20
+
+    // Verifica se a postagem existe
+    const postagens = await db.query('SELECT id FROM postagens WHERE id = ?', [id])
+    if (postagens.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Postagem não encontrada'
+      })
+    }
+
+    // Busca os comentários
+    const offset = (pagina - 1) * limite
+    const comentarios = await db.query(`
+      SELECT 
+        c.id,
+        c.conteudo,
+        c.criado_em,
+        u.nome as usuario_nome
+      FROM comentarios c
+      LEFT JOIN usuarios u ON c.usuario_id = u.id
+      WHERE c.postagem_id = ?
+      ORDER BY c.criado_em ASC
+      LIMIT ? OFFSET ?
+    `, [id, limite, offset])
+
+    // Conta total de comentários
+    const totalResult = await db.query(
+      'SELECT COUNT(*) as total FROM comentarios WHERE postagem_id = ?',
+      [id]
+    )
+    const total = totalResult[0].total
+
+    res.json({
+      success: true,
+      data: comentarios.map(c => ({
+        id: c.id,
+        conteudo: c.conteudo,
+        usuario: c.usuario_nome,
+        data: formatarData(c.criado_em)
+      })),
+      pagination: {
+        pagina,
+        limite,
+        total,
+        totalPaginas: Math.ceil(total / limite)
+      }
+    })
+
+  } catch (error) {
+    console.error('[ERRO LISTAR COMENTARIOS]', error)
+    res.status(500).json({
+      success: false,
+      message: 'Erro ao carregar comentários'
     })
   }
 })

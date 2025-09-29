@@ -37,6 +37,7 @@ export default function Perfil() {
   const [mensagem, setMensagem] = useState('')
   const [erro, setErro] = useState('')
   const [mostrarAlterarSenha, setMostrarAlterarSenha] = useState(false)
+  const [avatarError, setAvatarError] = useState(false)
 
   /**
    * Carrega os dados do usuário ao montar o componente
@@ -119,7 +120,18 @@ export default function Perfil() {
 
       if (response.ok) {
         setMensagem('Perfil atualizado com sucesso!')
-        setUsuario(prev => ({ ...prev, ...data.data }))
+        
+        // Atualiza o estado do usuário com todos os dados retornados
+        setUsuario(prev => ({ 
+          ...prev, 
+          nome: data.data.nome,
+          bio: data.data.bio,
+          avatar_url: data.data.avatar_url,
+          telefone: data.data.telefone
+        }))
+        
+        // Reset avatar error para tentar carregar nova imagem
+        setAvatarError(false)
         
         // Atualiza os dados do usuário no localStorage
         const updatedUser = { ...user, nome: data.data.nome }
@@ -276,11 +288,13 @@ export default function Perfil() {
               {/* Avatar */}
               <div className="text-center mb-6">
                 <div className="w-24 h-24 mx-auto mb-4">
-                  {usuario?.avatar_url ? (
+                  {usuario?.avatar_url && !avatarError ? (
                     <img
                       src={usuario.avatar_url}
                       alt="Avatar"
                       className="w-full h-full rounded-full object-cover border-4 border-gray-200"
+                      onError={() => setAvatarError(true)}
+                      onLoad={() => setAvatarError(false)}
                     />
                   ) : (
                     <div className="w-full h-full rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-2xl font-bold">
@@ -371,7 +385,10 @@ export default function Perfil() {
                   <input
                     type="url"
                     value={formData.avatar_url}
-                    onChange={(e) => setFormData(prev => ({ ...prev, avatar_url: e.target.value }))}
+                    onChange={(e) => {
+                      setFormData(prev => ({ ...prev, avatar_url: e.target.value }))
+                      setAvatarError(false) // Reset avatar error when URL changes
+                    }}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     placeholder="https://exemplo.com/sua-foto.jpg"
                   />

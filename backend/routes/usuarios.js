@@ -181,25 +181,38 @@ router.put('/:id', verificarAuth, [
     .isLength({ min: 1, max: 50 })
     .withMessage('Nome deve ter entre 1 e 50 caracteres'),
   body('bio')
-    .optional()
+    .optional({ checkFalsy: true })
     .trim()
     .isLength({ max: 200 })
     .withMessage('Bio deve ter no máximo 200 caracteres'),
   body('avatar_url')
-    .optional()
-    .isURL()
+    .optional({ checkFalsy: true })
+    .custom((value) => {
+      if (!value || value.trim() === '') return true
+      try {
+        new URL(value)
+        return true
+      } catch {
+        return false
+      }
+    })
     .withMessage('URL do avatar inválida'),
   body('telefone')
-    .optional()
-    .matches(/^\(\d{2}\)\s\d{4,5}-\d{4}$/)
-    .withMessage('Telefone deve estar no formato (XX) XXXXX-XXXX'),
+    .optional({ checkFalsy: true })
+    .custom((value) => {
+      if (!value || value.trim() === '') return true
+      // Aceita formatos mais flexíveis
+      return /^\(\d{2}\)\s?\d{4,5}-?\d{4}$/.test(value) || /^\d{10,11}$/.test(value.replace(/\D/g, ''))
+    })
+    .withMessage('Telefone inválido'),
   body('senha')
-    .optional()
+    .optional({ checkFalsy: true })
     .isLength({ min: 6 })
     .withMessage('Senha deve ter pelo menos 6 caracteres')
 ], async (req, res) => {
   try {
     console.log(`[${new Date().toISOString()}] PUT /api/usuarios/${req.params.id}`)
+    console.log('📝 [DEBUG] Body recebido:', req.body)
     
     const { id } = req.params
     const { nome, bio, avatar_url, telefone, senha, senhaAtual } = req.body
@@ -215,6 +228,7 @@ router.put('/:id', verificarAuth, [
     // Verifica se há erros de validação
     const errors = validationResult(req)
     if (!errors.isEmpty()) {
+      console.log('❌ [DEBUG] Erros de validação:', errors.array())
       return res.status(400).json({
         success: false,
         message: 'Dados inválidos',

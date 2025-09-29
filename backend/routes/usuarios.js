@@ -101,22 +101,37 @@ router.get('/', verificarAuth, async (req, res) => {
 
 /**
  * GET /api/usuarios/:id
- * Obtém informações públicas de um usuário específico
+ * Obtém informações do usuário (próprio perfil se autenticado)
  */
-router.get('/:id', async (req, res) => {
+router.get('/:id', verificarAuth, async (req, res) => {
   try {
+    console.log(`[${new Date().toISOString()}] GET /api/usuarios/${req.params.id}`)
+    
     const { id } = req.params
+    const usuarioLogadoId = req.usuario.id
+
+    // Verifica se é o próprio usuário
+    if (parseInt(id) !== usuarioLogadoId) {
+      return res.status(403).json({
+        success: false,
+        message: 'Acesso negado: você só pode ver seu próprio perfil'
+      })
+    }
 
     const usuarios = await db.query(`
       SELECT 
         id,
         nome,
-        curso,
+        email,
+        bio,
+        avatar_url,
+        telefone,
         criado_em,
-        (SELECT COUNT(*) FROM postagens WHERE usuario_id = usuarios.id) as total_postagens,
-        (SELECT COUNT(*) FROM curtidas WHERE usuario_id = usuarios.id) as total_curtidas
+        (SELECT COUNT(*) FROM postagens WHERE usuario_id = usuarios.id AND ativo = 1) as total_postagens,
+        (SELECT COUNT(*) FROM curtidas WHERE usuario_id = usuarios.id) as total_curtidas,
+        (SELECT COUNT(*) FROM comentarios WHERE usuario_id = usuarios.id AND ativo = 1) as total_comentarios
       FROM usuarios 
-      WHERE id = ?
+      WHERE id = ? AND ativo = 1
     `, [id])
 
     if (usuarios.length === 0) {
@@ -128,27 +143,21 @@ router.get('/:id', async (req, res) => {
 
     const usuario = usuarios[0]
 
-    // Busca as postagens mais recentes do usuário
-    const postagens = await db.query(`
-      SELECT id, conteudo, tipo, criado_em
-      FROM postagens
-      WHERE usuario_id = ?
-      ORDER BY criado_em DESC
-      LIMIT 5
-    `, [id])
-
     res.json({
       success: true,
       data: {
         id: usuario.id,
         nome: usuario.nome,
-        curso: usuario.curso,
+        email: usuario.email,
+        bio: usuario.bio,
+        avatar_url: usuario.avatar_url,
+        telefone: usuario.telefone,
         membro_desde: usuario.criado_em,
         estatisticas: {
-          total_postagens: parseInt(usuario.total_postagens),
-          total_curtidas: parseInt(usuario.total_curtidas)
-        },
-        postagens_recentes: postagens
+          total_postagens: parseInt(usuario.total_postagens || 0),
+          total_curtidas: parseInt(usuario.total_curtidas || 0),
+          total_comentarios: parseInt(usuario.total_comentarios || 0)
+        }
       }
     })
 
@@ -166,14 +175,34 @@ router.get('/:id', async (req, res) => {
  * Atualiza os dados do usuário (apenas o próprio usuário)
  */
 router.put('/:id', verificarAuth, [
-  body('nome').optional().notEmpty().withMessage('Nome não pode estar vazio'),
-  body('curso').optional().notEmpty().withMessage('Curso não pode estar vazio'),
-  body('telefone').optional().isMobilePhone('pt-BR').withMessage('Telefone inválido'),
-  body('senha').optional().isLength({ min: 6 }).withMessage('Senha deve ter pelo menos 6 caracteres')
+  body('nome')
+    .optional()
+    .trim()
+    .isLength({ min: 1, max: 50 })
+    .withMessage('Nome deve ter entre 1 e 50 caracteres'),
+  body('bio')
+    .optional()
+    .trim()
+    .isLength({ max: 200 })
+    .withMessage('Bio deve ter no máximo 200 caracteres'),
+  body('avatar_url')
+    .optional()
+    .isURL()
+    .withMessage('URL do avatar inválida'),
+  body('telefone')
+    .optional()
+    .matches(/^\(\d{2}\)\s\d{4,5}-\d{4}$/)
+    .withMessage('Telefone deve estar no formato (XX) XXXXX-XXXX'),
+  body('senha')
+    .optional()
+    .isLength({ min: 6 })
+    .withMessage('Senha deve ter pelo menos 6 caracteres')
 ], async (req, res) => {
   try {
+    console.log(`[${new Date().toISOString()}] PUT /api/usuarios/${req.params.id}`)
+    
     const { id } = req.params
-    const { nome, curso, telefone, senha, senhaAtual } = req.body
+    const { nome, bio, avatar_url, telefone, senha, senhaAtual } = req.body
 
     // Verifica se é o próprio usuário
     if (parseInt(id) !== req.usuario.id) {
@@ -197,14 +226,19 @@ router.put('/:id', verificarAuth, [
     const campos = []
     const valores = []
 
-    if (nome) {
+    if (nome !== undefined) {
       campos.push('nome = ?')
-      valores.push(nome)
+      valores.push(nome.trim())
     }
 
-    if (curso) {
-      campos.push('curso = ?')
-      valores.push(curso)
+    if (bio !== undefined) {
+      campos.push('bio = ?')
+      valores.push(bio.trim() || null)
+    }
+
+    if (avatar_url !== undefined) {
+      campos.push('avatar_url = ?')
+      valores.push(avatar_url || null)
     }
 
     if (telefone !== undefined) {
@@ -223,6 +257,13 @@ router.put('/:id', verificarAuth, [
 
       // Verifica a senha atual
       const usuario = await db.query('SELECT senha FROM usuarios WHERE id = ?', [id])
+      if (usuario.length === 0) {
+        return res.status(404).json({
+          success: false,
+          message: 'Usuário não encontrado'
+        })
+      }
+
       const senhaValida = await bcrypt.compare(senhaAtual, usuario[0].senha)
       
       if (!senhaValida) {
@@ -247,15 +288,23 @@ router.put('/:id', verificarAuth, [
     valores.push(id)
     
     await db.query(
-      `UPDATE usuarios SET ${campos.join(', ')}, atualizado_em = NOW() WHERE id = ?`,
+      `UPDATE usuarios SET ${campos.join(', ')} WHERE id = ?`,
       valores
     )
 
     console.log(`[ATUALIZAR USUÁRIO] Usuário ${id} atualizou perfil`)
 
+    // Retorna os dados atualizados
+    const usuarioAtualizado = await db.query(`
+      SELECT id, nome, email, bio, avatar_url, telefone
+      FROM usuarios 
+      WHERE id = ?
+    `, [id])
+
     res.json({
       success: true,
-      message: 'Perfil atualizado com sucesso!'
+      message: 'Perfil atualizado com sucesso!',
+      data: usuarioAtualizado[0]
     })
 
   } catch (error) {

@@ -54,6 +54,8 @@ function createTables() {
         email TEXT UNIQUE NOT NULL,
         senha TEXT NOT NULL,
         telefone TEXT,
+        bio TEXT,
+        avatar_url TEXT,
         criado_em DATETIME DEFAULT CURRENT_TIMESTAMP,
         ativo BOOLEAN DEFAULT 1
       );
@@ -101,7 +103,25 @@ function createTables() {
         reject(err)
       } else {
         console.log('🏗️ Tabelas criadas com sucesso')
-        resolve()
+        
+        // Adicionar colunas bio e avatar_url se não existirem
+        const alterTables = `
+          -- Adiciona bio se não existir
+          ALTER TABLE usuarios ADD COLUMN bio TEXT;
+          
+          -- Adiciona avatar_url se não existir  
+          ALTER TABLE usuarios ADD COLUMN avatar_url TEXT;
+        `
+        
+        db.exec(alterTables, (alterErr) => {
+          if (alterErr) {
+            // Ignora erros se as colunas já existem
+            console.log('ℹ️ Colunas bio/avatar_url já existem ou foram adicionadas')
+          } else {
+            console.log('🔧 Colunas bio e avatar_url adicionadas')
+          }
+          resolve()
+        })
       }
     })
   })

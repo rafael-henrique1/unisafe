@@ -22,6 +22,9 @@ export default function Feed() {
   const [novoComentario, setNovoComentario] = useState({})
   const [enviandoComentario, setEnviandoComentario] = useState({})
 
+  // Estados para controlar curtidas
+  const [curtindoPostagem, setCurtindoPostagem] = useState({})
+
   /**
    * Carrega as postagens do feed quando o componente monta
    */
@@ -102,12 +105,21 @@ export default function Feed() {
    */
   const adicionarComentario = async (postagemId) => {
     const conteudo = novoComentario[postagemId]?.trim()
-    if (!conteudo) return
+    
+    if (!conteudo) {
+      return
+    }
 
     try {
       setEnviandoComentario(prev => ({ ...prev, [postagemId]: true }))
 
-      const token = localStorage.getItem('token')
+      const token = localStorage.getItem('unisafe_token')
+      
+      if (!token) {
+        alert('Você precisa estar logado para comentar')
+        return
+      }
+      
       const response = await fetch(`http://localhost:5000/api/postagens/${postagemId}/comentarios`, {
         method: 'POST',
         headers: {
@@ -142,6 +154,57 @@ export default function Feed() {
       console.error('Erro ao adicionar comentário:', error)
     } finally {
       setEnviandoComentario(prev => ({ ...prev, [postagemId]: false }))
+    }
+  }
+
+  /**
+   * Curte ou descurte uma postagem
+   * @param {number} postagemId - ID da postagem
+   */
+  const toggleCurtida = async (postagemId) => {
+    try {
+      setCurtindoPostagem(prev => ({ ...prev, [postagemId]: true }))
+
+      const token = localStorage.getItem('unisafe_token')
+      if (!token) {
+        alert('Você precisa estar logado para curtir postagens')
+        return
+      }
+
+      const response = await fetch(`http://localhost:5000/api/postagens/${postagemId}/curtir`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        
+        // Atualiza o estado da postagem
+        setPostagens(prev => prev.map(p => {
+          if (p.id === postagemId) {
+            return {
+              ...p,
+              usuarioCurtiu: data.action === 'added',
+              curtidas: data.action === 'added' 
+                ? (p.curtidas || 0) + 1 
+                : Math.max((p.curtidas || 0) - 1, 0)
+            }
+          }
+          return p
+        }))
+      } else {
+        console.error('Erro ao curtir postagem')
+        if (response.status === 401) {
+          alert('Sessão expirada. Por favor, faça login novamente.')
+        }
+      }
+    } catch (error) {
+      console.error('Erro ao curtir postagem:', error)
+    } finally {
+      setCurtindoPostagem(prev => ({ ...prev, [postagemId]: false }))
     }
   }
 
@@ -451,8 +514,21 @@ export default function Feed() {
 
                   {/* Ações da postagem */}
                   <div className="flex items-center space-x-6 text-sm text-gray-500 pt-3 border-t border-gray-100">
-                    <button className="flex items-center space-x-1 hover:text-primary-600 transition-colors">
-                      <span>👍</span>
+                    <button 
+                      className={`flex items-center space-x-1 transition-colors ${
+                        postagem.usuarioCurtiu 
+                          ? 'text-primary-600 hover:text-primary-700' 
+                          : 'text-gray-500 hover:text-primary-600'
+                      } ${curtindoPostagem[postagem.id] ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      onClick={() => toggleCurtida(postagem.id)}
+                      disabled={curtindoPostagem[postagem.id]}
+                      title={postagem.usuarioCurtiu ? 'Remover curtida' : 'Curtir postagem'}
+                    >
+                      {curtindoPostagem[postagem.id] ? (
+                        <div className="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-current"></div>
+                      ) : (
+                        <span className={postagem.usuarioCurtiu ? '❤️' : '🤍'}></span>
+                      )}
                       <span>{postagem.curtidas || 0} curtidas</span>
                     </button>
                     <button 

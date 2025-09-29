@@ -50,6 +50,19 @@ const verificarAuth = (req, res, next) => {
 router.get('/', async (req, res) => {
   try {
     const { limite = 20, pagina = 1, tipo } = req.query
+    
+    // Verifica se há usuário autenticado
+    const token = req.headers.authorization?.replace('Bearer ', '')
+    let usuarioLogadoId = null
+    
+    if (token) {
+      try {
+        const decoded = jwt.verify(token, JWT_SECRET)
+        usuarioLogadoId = decoded.id
+      } catch (error) {
+        // Token inválido, continua sem ID do usuário
+      }
+    }
 
     let query = `
       SELECT 
@@ -61,7 +74,11 @@ router.get('/', async (req, res) => {
         p.criado_em,
         u.nome as usuario_nome,
         COUNT(c.id) as total_curtidas,
-        (SELECT COUNT(*) FROM comentarios co WHERE co.postagem_id = p.id) as total_comentarios
+        (SELECT COUNT(*) FROM comentarios co WHERE co.postagem_id = p.id) as total_comentarios,
+        ${usuarioLogadoId ? 
+          `(SELECT COUNT(*) FROM curtidas cu WHERE cu.postagem_id = p.id AND cu.usuario_id = ${usuarioLogadoId}) as usuario_curtiu` : 
+          '0 as usuario_curtiu'
+        }
       FROM postagens p
       LEFT JOIN usuarios u ON p.usuario_id = u.id
       LEFT JOIN curtidas c ON p.id = c.postagem_id
@@ -97,7 +114,8 @@ router.get('/', async (req, res) => {
       usuario: postagem.usuario_nome,
       data: formatarData(postagem.criado_em),
       curtidas: parseInt(postagem.total_curtidas) || 0,
-      comentarios: parseInt(postagem.total_comentarios) || 0
+      comentarios: parseInt(postagem.total_comentarios) || 0,
+      usuarioCurtiu: Boolean(postagem.usuario_curtiu)
     }))
 
     res.json({

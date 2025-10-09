@@ -24,7 +24,7 @@ O **UniSafe** é uma plataforma que permite a qualquer comunidade:
 ### Backend
 - **Node.js** - Runtime JavaScript no servidor
 - **Express.js** - Framework web para Node.js
-- **SQLite** - Banco de dados relacional embarcado
+- **MySQL 8** - Banco de dados relacional (Railway)
 - **JWT** - Autenticação via JSON Web Tokens
 - **bcrypt** - Criptografia de senhas
 
@@ -44,8 +44,7 @@ UniSafe/
 ├── backend/           # API Express.js
 │   ├── routes/        # Rotas da API
 │   ├── config/        # Configurações
-│   ├── database/      # Banco de dados SQLite
-│   │   └── unisafe.db # Arquivo do banco SQLite
+│   ├── database/      # Documentação do banco de dados
 │   └── server.js      # Servidor principal
 └── README.md          # Documentação do projeto
 ```
@@ -196,9 +195,10 @@ O projeto inclui usuários e postagens de exemplo para facilitar testes:
 NODE_ENV=development
 PORT=5000
 JWT_SECRET=sua_chave_secreta_jwt
+DATABASE_URL=mysql://user:password@host:port/database
 ```
 
-**Nota**: O projeto utiliza SQLite como banco de dados, que é criado automaticamente em `backend/database/unisafe.db`. Não há necessidade de configurações adicionais de banco de dados.
+**Nota**: O projeto utiliza MySQL 8 hospedado no Railway como banco de dados. Configure a variável `DATABASE_URL` no arquivo `.env` com suas credenciais. Consulte `backend/.env.example` para detalhes.
 
 ### Scripts Disponíveis
 
@@ -219,7 +219,7 @@ JWT_SECRET=sua_chave_secreta_jwt
 - [x] CRUD de postagens
 - [x] Sistema de curtidas
 - [x] Interface responsiva
-- [x] Conexão com SQLite
+- [x] Conexão com MySQL (Railway)
 - [x] API RESTful completa
 
 ### 🚧 Em Desenvolvimento
@@ -250,18 +250,19 @@ Este projeto foi desenvolvido para a comunidade universitária. Contribuições 
 
 Este projeto está sob a licença MIT. Veja o arquivo [LICENSE](LICENSE) para mais detalhes.
 
-## � Troubleshooting
+## 🔧 Troubleshooting
 
-### Erro: "unable to open database file"
+### Erro de Conexão com MySQL
 
-**Problema**: O servidor backend não consegue conectar com o banco SQLite.
+**Problema**: O servidor backend não consegue conectar com o MySQL Railway.
 
 **Solução**: 
-1. Verifique se a pasta `backend/database/` existe
-2. Se não existir, crie-a manualmente ou use: `mkdir backend/database`
-3. O arquivo `unisafe.db` será criado automaticamente quando o servidor iniciar
+1. Verifique se a variável `DATABASE_URL` está configurada corretamente no arquivo `backend/.env`
+2. Confirme que as credenciais do Railway estão corretas (host, port, user, password, database)
+3. Teste a conexão usando: `mysql -h HOST -P PORT -u USER -p`
+4. Verifique se o firewall permite conexões com Railway (porta padrão: 3306)
 
-**Causa**: A pasta database não existia, impedindo o SQLite de criar o arquivo do banco.
+**Causa**: Credenciais incorretas ou problemas de rede com o servidor Railway.
 
 ### Porta já em uso
 

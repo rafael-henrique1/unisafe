@@ -13,11 +13,12 @@
     "seguranca",
     "api",
     "express",
-    "sqlite"
+    "mysql"
   ],
   "author": "UniSafe Team",
   "license": "MIT",
   "dependencies": {
+    "axios": "^1.12.2",
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
     "dotenv": "^16.3.1",
@@ -26,7 +27,7 @@
     "helmet": "^7.1.0",
     "jsonwebtoken": "^9.0.2",
     "morgan": "^1.10.0",
-    "sqlite3": "^5.1.7"
+    "mysql2": "^3.15.2"
   },
   "devDependencies": {
     "nodemon": "^3.0.1"

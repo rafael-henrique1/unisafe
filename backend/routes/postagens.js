@@ -49,6 +49,7 @@ const verificarAuth = (req, res, next) => {
  */
 router.get('/', async (req, res) => {
   try {
+    console.log('[LISTAR POSTAGENS] Recebendo requisição...')
     const { limite = 20, pagina = 1, tipo } = req.query
     
     // Verifica se há usuário autenticado
@@ -59,11 +60,19 @@ router.get('/', async (req, res) => {
       try {
         const decoded = jwt.verify(token, JWT_SECRET)
         usuarioLogadoId = decoded.id
+        console.log(`[LISTAR POSTAGENS] Usuário autenticado ID: ${usuarioLogadoId}`)
       } catch (error) {
-        // Token inválido, continua sem ID do usuário
+        console.log('[LISTAR POSTAGENS] Token inválido, continuando sem autenticação')
       }
     }
 
+    // Monta a query SQL sem interpolação de variáveis
+    const params = []
+    
+    const limite_int = parseInt(limite)
+    const pagina_int = parseInt(pagina)
+    const offset = (pagina_int - 1) * limite_int
+    
     let query = `
       SELECT 
         p.id,
@@ -72,40 +81,58 @@ router.get('/', async (req, res) => {
         p.categoria as tipo,
         p.localizacao,
         p.criado_em,
-        u.nome as usuario_nome,
-        COUNT(c.id) as total_curtidas,
-        (SELECT COUNT(*) FROM comentarios co WHERE co.postagem_id = p.id) as total_comentarios,
-        ${usuarioLogadoId ? 
-          `(SELECT COUNT(*) FROM curtidas cu WHERE cu.postagem_id = p.id AND cu.usuario_id = ${usuarioLogadoId}) as usuario_curtiu` : 
-          '0 as usuario_curtiu'
-        }
+        u.nome as usuario_nome
       FROM postagens p
       LEFT JOIN usuarios u ON p.usuario_id = u.id
-      LEFT JOIN curtidas c ON p.id = c.postagem_id
       WHERE p.ativo = 1
     `
-
-    const params = []
 
     // Filtra por categoria se especificado
     if (tipo) {
       query += ' AND p.categoria = ?'
       params.push(tipo)
     }
+    
+    query += ` ORDER BY p.criado_em DESC LIMIT ${limite_int} OFFSET ${offset}`
 
-    query += `
-      GROUP BY p.id, p.titulo, p.conteudo, p.categoria, p.localizacao, p.criado_em, u.nome
-      ORDER BY p.criado_em DESC
-      LIMIT ? OFFSET ?
-    `
-
-    const offset = (parseInt(pagina) - 1) * parseInt(limite)
-    params.push(parseInt(limite), offset)
-
+    console.log(`[LISTAR POSTAGENS] Executando query - Limite: ${limite_int}, Offset: ${offset}, Params:`, params)
     const postagens = await db.query(query, params)
+    console.log(`[LISTAR POSTAGENS] ${postagens.length} postagens encontradas`)
+
+    // Para cada postagem, busca curtidas e comentários
+    const postagensCompletas = await Promise.all(postagens.map(async (p) => {
+      // Conta curtidas
+      const curtidas = await db.query(
+        'SELECT COUNT(*) as total FROM curtidas WHERE postagem_id = ?',
+        [p.id]
+      )
+      
+      // Conta comentários
+      const comentarios = await db.query(
+        'SELECT COUNT(*) as total FROM comentarios WHERE postagem_id = ? AND ativo = 1',
+        [p.id]
+      )
+      
+      // Verifica se usuário curtiu (se autenticado)
+      let usuarioCurtiu = false
+      if (usuarioLogadoId) {
+        const curtida = await db.query(
+          'SELECT COUNT(*) as total FROM curtidas WHERE postagem_id = ? AND usuario_id = ?',
+          [p.id, usuarioLogadoId]
+        )
+        usuarioCurtiu = curtida[0].total > 0
+      }
+      
+      return {
+        ...p,
+        total_curtidas: curtidas[0].total,
+        total_comentarios: comentarios[0].total,
+        usuario_curtiu: usuarioCurtiu
+      }
+    }))
 
     // Formata as postagens para o frontend
-    const postagensFormatadas = postagens.map(postagem => ({
+    const postagensFormatadas = postagensCompletas.map(postagem => ({
       id: postagem.id,
       titulo: postagem.titulo,
       conteudo: postagem.conteudo,
@@ -118,6 +145,8 @@ router.get('/', async (req, res) => {
       usuarioCurtiu: Boolean(postagem.usuario_curtiu)
     }))
 
+    console.log(`✅ [LISTAR POSTAGENS] Retornando ${postagensFormatadas.length} postagens formatadas`)
+
     res.json({
       success: true,
       data: postagensFormatadas,
@@ -129,7 +158,8 @@ router.get('/', async (req, res) => {
     })
 
   } catch (error) {
-    console.error('[ERRO LISTAR POSTAGENS]', error)
+    console.error('❌ [ERRO LISTAR POSTAGENS]', error.message)
+    console.error('Stack:', error.stack)
     res.status(500).json({
       success: false,
       message: 'Erro ao carregar postagens'
@@ -159,13 +189,15 @@ router.post('/', verificarAuth, [
     const { conteudo, tipo } = req.body
     const usuarioId = req.usuario.id
 
+    console.log(`[CRIAR POSTAGEM] Usuário ID ${usuarioId} criando postagem tipo: ${tipo}`)
+
     // Insere a nova postagem
     const resultado = await db.query(
       'INSERT INTO postagens (usuario_id, titulo, conteudo, categoria) VALUES (?, ?, ?, ?)',
       [usuarioId, conteudo.substring(0, 50) + '...', conteudo, tipo]
     )
 
-    console.log(`[NOVA POSTAGEM] Usuário ${req.usuario.email} criou postagem tipo: ${tipo}`)
+    console.log(`✅ [CRIAR POSTAGEM] Postagem criada - ID: ${resultado.lastID}, Tipo: ${tipo}`)
 
     res.status(201).json({
       success: true,
@@ -180,7 +212,8 @@ router.post('/', verificarAuth, [
     })
 
   } catch (error) {
-    console.error('[ERRO CRIAR POSTAGEM]', error)
+    console.error('❌ [ERRO CRIAR POSTAGEM]', error.message)
+    console.error('Stack:', error.stack)
     res.status(500).json({
       success: false,
       message: 'Erro ao criar postagem'
@@ -272,9 +305,12 @@ router.post('/:id/curtir', verificarAuth, async (req, res) => {
     const { id } = req.params
     const usuarioId = req.usuario.id
 
+    console.log(`[CURTIR] Usuário ID ${usuarioId} tentando curtir postagem ID ${id}`)
+
     // Verifica se a postagem existe
     const postagens = await db.query('SELECT id FROM postagens WHERE id = ?', [id])
     if (postagens.length === 0) {
+      console.log(`[CURTIR] Postagem ID ${id} não encontrada`)
       return res.status(404).json({
         success: false,
         message: 'Postagem não encontrada'
@@ -290,6 +326,7 @@ router.post('/:id/curtir', verificarAuth, async (req, res) => {
     if (curtidaExistente.length > 0) {
       // Remove a curtida
       await db.query('DELETE FROM curtidas WHERE postagem_id = ? AND usuario_id = ?', [id, usuarioId])
+      console.log(`✅ [CURTIR] Curtida removida - Postagem ID ${id}, Usuário ID ${usuarioId}`)
       
       res.json({
         success: true,
@@ -299,9 +336,10 @@ router.post('/:id/curtir', verificarAuth, async (req, res) => {
     } else {
       // Adiciona a curtida
       await db.query(
-        'INSERT INTO curtidas (postagem_id, usuario_id, criado_em) VALUES (?, ?, datetime("now"))',
+        'INSERT INTO curtidas (postagem_id, usuario_id, criado_em) VALUES (?, ?, NOW())',
         [id, usuarioId]
       )
+      console.log(`✅ [CURTIR] Curtida adicionada - Postagem ID ${id}, Usuário ID ${usuarioId}`)
       
       res.json({
         success: true,
@@ -311,7 +349,8 @@ router.post('/:id/curtir', verificarAuth, async (req, res) => {
     }
 
   } catch (error) {
-    console.error('[ERRO CURTIR POSTAGEM]', error)
+    console.error('❌ [ERRO CURTIR POSTAGEM]', error.message)
+    console.error('Stack:', error.stack)
     res.status(500).json({
       success: false,
       message: 'Erro ao processar curtida'
@@ -330,11 +369,16 @@ router.post('/:id/comentarios', verificarAuth, [
     .withMessage('Comentário deve ter entre 1 e 500 caracteres')
 ], async (req, res) => {
   try {
-    console.log(`[${new Date().toISOString()}] POST /api/postagens/${req.params.id}/comentarios`)
+    const { id } = req.params
+    const { conteudo } = req.body
+    const usuarioId = req.usuario.id
+
+    console.log(`[COMENTAR] Usuário ID ${usuarioId} comentando na postagem ID ${id}`)
 
     // Verifica erros de validação
     const errors = validationResult(req)
     if (!errors.isEmpty()) {
+      console.log(`[COMENTAR] Validação falhou:`, errors.array())
       return res.status(400).json({
         success: false,
         message: 'Dados inválidos',
@@ -342,13 +386,10 @@ router.post('/:id/comentarios', verificarAuth, [
       })
     }
 
-    const { id } = req.params
-    const { conteudo } = req.body
-    const usuarioId = req.usuario.id
-
     // Verifica se a postagem existe
     const postagens = await db.query('SELECT id FROM postagens WHERE id = ?', [id])
     if (postagens.length === 0) {
+      console.log(`[COMENTAR] Postagem ID ${id} não encontrada`)
       return res.status(404).json({
         success: false,
         message: 'Postagem não encontrada'
@@ -357,9 +398,11 @@ router.post('/:id/comentarios', verificarAuth, [
 
     // Insere o comentário
     const resultado = await db.query(
-      'INSERT INTO comentarios (postagem_id, usuario_id, conteudo, criado_em) VALUES (?, ?, ?, datetime("now"))',
+      'INSERT INTO comentarios (postagem_id, usuario_id, conteudo, criado_em) VALUES (?, ?, ?, NOW())',
       [id, usuarioId, conteudo]
     )
+
+    console.log(`✅ [COMENTAR] Comentário inserido - ID: ${resultado.lastID}`)
 
     // Busca o comentário criado com dados do usuário
     const novoComentario = await db.query(`
@@ -373,6 +416,8 @@ router.post('/:id/comentarios', verificarAuth, [
       WHERE c.id = ?
     `, [resultado.lastID])
 
+    console.log(`✅ [COMENTAR] Comentário completo criado com sucesso`)
+
     res.status(201).json({
       success: true,
       message: 'Comentário adicionado com sucesso',
@@ -385,7 +430,8 @@ router.post('/:id/comentarios', verificarAuth, [
     })
 
   } catch (error) {
-    console.error('[ERRO ADICIONAR COMENTARIO]', error)
+    console.error('❌ [ERRO ADICIONAR COMENTARIO]', error.message)
+    console.error('Stack:', error.stack)
     res.status(500).json({
       success: false,
       message: 'Erro ao adicionar comentário'
@@ -399,15 +445,16 @@ router.post('/:id/comentarios', verificarAuth, [
  */
 router.get('/:id/comentarios', async (req, res) => {
   try {
-    console.log(`[${new Date().toISOString()}] GET /api/postagens/${req.params.id}/comentarios`)
-
     const { id } = req.params
     const pagina = parseInt(req.query.pagina) || 1
     const limite = parseInt(req.query.limite) || 20
 
+    console.log(`[LISTAR COMENTARIOS] Postagem ID: ${id}, Página: ${pagina}, Limite: ${limite}`)
+
     // Verifica se a postagem existe
     const postagens = await db.query('SELECT id FROM postagens WHERE id = ?', [id])
     if (postagens.length === 0) {
+      console.log(`[LISTAR COMENTARIOS] Postagem ID ${id} não encontrada`)
       return res.status(404).json({
         success: false,
         message: 'Postagem não encontrada'
@@ -415,7 +462,12 @@ router.get('/:id/comentarios', async (req, res) => {
     }
 
     // Busca os comentários
-    const offset = (pagina - 1) * limite
+    const limite_int = parseInt(limite)
+    const pagina_int = parseInt(pagina)
+    const offset = (pagina_int - 1) * limite_int
+    const id_int = parseInt(id)
+    
+    console.log(`[LISTAR COMENTARIOS] Buscando comentários - Limite: ${limite_int}, Offset: ${offset}`)
     const comentarios = await db.query(`
       SELECT 
         c.id,
@@ -424,17 +476,20 @@ router.get('/:id/comentarios', async (req, res) => {
         u.nome as usuario_nome
       FROM comentarios c
       LEFT JOIN usuarios u ON c.usuario_id = u.id
-      WHERE c.postagem_id = ?
+      WHERE c.postagem_id = ${id_int} AND c.ativo = 1
       ORDER BY c.criado_em ASC
-      LIMIT ? OFFSET ?
-    `, [id, limite, offset])
+      LIMIT ${limite_int} OFFSET ${offset}
+    `)
+
+    console.log(`[LISTAR COMENTARIOS] ${comentarios.length} comentários encontrados`)
 
     // Conta total de comentários
     const totalResult = await db.query(
-      'SELECT COUNT(*) as total FROM comentarios WHERE postagem_id = ?',
-      [id]
+      `SELECT COUNT(*) as total FROM comentarios WHERE postagem_id = ${id_int} AND ativo = 1`
     )
     const total = totalResult[0].total
+
+    console.log(`✅ [LISTAR COMENTARIOS] Total de ${total} comentários na postagem`)
 
     res.json({
       success: true,
@@ -445,15 +500,16 @@ router.get('/:id/comentarios', async (req, res) => {
         data: formatarData(c.criado_em)
       })),
       pagination: {
-        pagina,
-        limite,
+        pagina: pagina_int,
+        limite: limite_int,
         total,
-        totalPaginas: Math.ceil(total / limite)
+        totalPaginas: Math.ceil(total / limite_int)
       }
     })
 
   } catch (error) {
-    console.error('[ERRO LISTAR COMENTARIOS]', error)
+    console.error('❌ [ERRO LISTAR COMENTARIOS]', error.message)
+    console.error('Stack:', error.stack)
     res.status(500).json({
       success: false,
       message: 'Erro ao carregar comentários'

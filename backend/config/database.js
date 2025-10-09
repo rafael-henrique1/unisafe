@@ -1,175 +1,190 @@
 /**
- * Configuração de Conexão com Banco de Dados SQLite
+ * Configuração de Conexão com Banco de Dados MySQL
  * 
- * Este arquivo estabelece a conexão com o banco SQLite e fornece
+ * Este arquivo estabelece a conexão com o banco MySQL (Railway) e fornece
  * métodos para executar queries de forma segura e eficiente.
  */
 
-const sqlite3 = require('sqlite3').verbose()
-const path = require('path')
+const mysql = require('mysql2/promise')
 require('dotenv').config()
 
-// Caminho do banco de dados
-const dbPath = path.join(__dirname, '..', 'database', 'unisafe.db')
-
-// Variável global para o banco
-let db
+// Pool de conexões MySQL
+let pool
 
 // Inicializa o banco de dados
-function initializeDatabase() {
-  return new Promise((resolve, reject) => {
-    // Cria o banco SQLite
-    db = new sqlite3.Database(dbPath, (err) => {
-      if (err) {
-        console.error('❌ Erro ao conectar SQLite:', err.message)
-        reject(err)
-        return
-      }
-      
-      console.log('📊 Conexão SQLite estabelecida:', dbPath)
-      
-      // Habilita foreign keys
-      db.run('PRAGMA foreign_keys = ON', (err) => {
-        if (err) {
-          console.error('❌ Erro ao habilitar foreign keys:', err.message)
-          reject(err)
-          return
-        }
-        
-        console.log('🔗 Foreign keys habilitadas')
-        createTables().then(resolve).catch(reject)
-      })
+async function initializeDatabase() {
+  try {
+    // Parse da DATABASE_URL
+    const DATABASE_URL = process.env.DATABASE_URL
+    
+    if (!DATABASE_URL) {
+      throw new Error('❌ DATABASE_URL não configurada no .env')
+    }
+
+    console.log('��� Conectando ao MySQL...')
+    
+    // Cria pool de conexões
+    pool = mysql.createPool({
+      uri: DATABASE_URL,
+      waitForConnections: true,
+      connectionLimit: 10,
+      queueLimit: 0,
+      enableKeepAlive: true,
+      keepAliveInitialDelay: 0
     })
-  })
+
+    // Testa a conexão
+    const connection = await pool.getConnection()
+    console.log('✅ Conexão MySQL estabelecida com sucesso!')
+    connection.release()
+
+    // Cria as tabelas
+    await createTables()
+    
+    return pool
+  } catch (error) {
+    console.error('❌ Erro ao conectar ao MySQL:', error.message)
+    throw error
+  }
 }
 
 // Cria as tabelas
-function createTables() {
-  return new Promise((resolve, reject) => {
-    const sql = `
-      -- Tabela de usuários
+async function createTables() {
+  try {
+    console.log('���️  Criando tabelas no MySQL...')
+
+    // Tabela de usuários
+    await pool.execute(`
       CREATE TABLE IF NOT EXISTS usuarios (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        nome TEXT NOT NULL,
-        email TEXT UNIQUE NOT NULL,
-        senha TEXT NOT NULL,
-        telefone TEXT,
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        nome VARCHAR(255) NOT NULL,
+        email VARCHAR(255) UNIQUE NOT NULL,
+        senha VARCHAR(255) NOT NULL,
+        telefone VARCHAR(20),
         bio TEXT,
         avatar_url TEXT,
-        criado_em DATETIME DEFAULT CURRENT_TIMESTAMP,
-        ativo BOOLEAN DEFAULT 1
-      );
+        criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        ativo BOOLEAN DEFAULT TRUE,
+        INDEX idx_email (email)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    `)
 
-      -- Tabela de postagens
+    // Tabela de postagens
+    await pool.execute(`
       CREATE TABLE IF NOT EXISTS postagens (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        usuario_id INTEGER NOT NULL,
-        titulo TEXT NOT NULL,
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        usuario_id INT NOT NULL,
+        titulo VARCHAR(255) NOT NULL,
         conteudo TEXT NOT NULL,
-        categoria TEXT DEFAULT 'informacao',
-        localizacao TEXT,
-        criado_em DATETIME DEFAULT CURRENT_TIMESTAMP,
-        ativo BOOLEAN DEFAULT 1,
-        FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE
-      );
+        categoria VARCHAR(50) DEFAULT 'informacao',
+        localizacao VARCHAR(255),
+        criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        ativo BOOLEAN DEFAULT TRUE,
+        FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE,
+        INDEX idx_usuario (usuario_id),
+        INDEX idx_categoria (categoria),
+        INDEX idx_criado_em (criado_em)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    `)
 
-      -- Tabela de curtidas
+    // Tabela de curtidas
+    await pool.execute(`
       CREATE TABLE IF NOT EXISTS curtidas (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        usuario_id INTEGER NOT NULL,
-        postagem_id INTEGER NOT NULL,
-        criado_em DATETIME DEFAULT CURRENT_TIMESTAMP,
-        UNIQUE(usuario_id, postagem_id),
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        usuario_id INT NOT NULL,
+        postagem_id INT NOT NULL,
+        criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE KEY unique_curtida (usuario_id, postagem_id),
         FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE,
-        FOREIGN KEY (postagem_id) REFERENCES postagens(id) ON DELETE CASCADE
-      );
+        FOREIGN KEY (postagem_id) REFERENCES postagens(id) ON DELETE CASCADE,
+        INDEX idx_usuario (usuario_id),
+        INDEX idx_postagem (postagem_id)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    `)
 
-      -- Tabela de comentários
+    // Tabela de comentários
+    await pool.execute(`
       CREATE TABLE IF NOT EXISTS comentarios (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        usuario_id INTEGER NOT NULL,
-        postagem_id INTEGER NOT NULL,
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        usuario_id INT NOT NULL,
+        postagem_id INT NOT NULL,
         conteudo TEXT NOT NULL,
-        criado_em DATETIME DEFAULT CURRENT_TIMESTAMP,
-        ativo BOOLEAN DEFAULT 1,
+        criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        ativo BOOLEAN DEFAULT TRUE,
         FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE,
-        FOREIGN KEY (postagem_id) REFERENCES postagens(id) ON DELETE CASCADE
-      );
-    `
+        FOREIGN KEY (postagem_id) REFERENCES postagens(id) ON DELETE CASCADE,
+        INDEX idx_usuario (usuario_id),
+        INDEX idx_postagem (postagem_id),
+        INDEX idx_criado_em (criado_em)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    `)
 
-    db.exec(sql, (err) => {
-      if (err) {
-        console.error('❌ Erro ao criar tabelas:', err.message)
-        reject(err)
-      } else {
-        console.log('🏗️ Tabelas criadas com sucesso')
-        
-        // Adicionar colunas bio e avatar_url se não existirem
-        const alterTables = `
-          -- Adiciona bio se não existir
-          ALTER TABLE usuarios ADD COLUMN bio TEXT;
-          
-          -- Adiciona avatar_url se não existir  
-          ALTER TABLE usuarios ADD COLUMN avatar_url TEXT;
-        `
-        
-        db.exec(alterTables, (alterErr) => {
-          if (alterErr) {
-            // Ignora erros se as colunas já existem
-            console.log('ℹ️ Colunas bio/avatar_url já existem ou foram adicionadas')
-          } else {
-            console.log('🔧 Colunas bio e avatar_url adicionadas')
-          }
-          resolve()
-        })
-      }
-    })
-  })
+    console.log('✅ Tabelas criadas com sucesso!')
+  } catch (error) {
+    console.error('❌ Erro ao criar tabelas:', error.message)
+    throw error
+  }
 }
 
-// Executa uma query
-function query(sql, params = []) {
-  return new Promise((resolve, reject) => {
-    if (sql.trim().toUpperCase().startsWith('SELECT')) {
-      db.all(sql, params, (err, rows) => {
-        if (err) {
-          console.error('❌ Erro SELECT:', err.message, 'SQL:', sql)
-          reject(err)
-        } else {
-          resolve(rows)
-        }
-      })
-    } else {
-      db.run(sql, params, function(err) {
-        if (err) {
-          console.error('❌ Erro RUN:', err.message, 'SQL:', sql)
-          reject(err)
-        } else {
-          resolve({ lastID: this.lastID, changes: this.changes })
-        }
-      })
+// Executa uma query (para SELECT retorna rows, para INSERT/UPDATE retorna info)
+async function query(sql, params = []) {
+  try {
+    if (!pool) {
+      throw new Error('Pool de conexões não inicializado. Execute initializeDatabase() primeiro.')
     }
-  })
-}
 
-// Executa uma query que retorna uma linha
-function get(sql, params = []) {
-  return new Promise((resolve, reject) => {
-    db.get(sql, params, (err, row) => {
-      if (err) {
-        console.error('❌ Erro GET:', err.message, 'SQL:', sql)
-        reject(err)
-      } else {
-        resolve(row)
+    const [rows] = await pool.execute(sql, params)
+    
+    // Para queries INSERT/UPDATE/DELETE, retorna info com insertId
+    if (sql.trim().toUpperCase().startsWith('INSERT')) {
+      console.log(`✅ INSERT executado - ID: ${rows.insertId}, Linhas afetadas: ${rows.affectedRows}`)
+      return {
+        lastID: rows.insertId,
+        insertId: rows.insertId,
+        affectedRows: rows.affectedRows,
+        changes: rows.affectedRows
       }
-    })
-  })
+    }
+    
+    if (sql.trim().toUpperCase().startsWith('UPDATE')) {
+      console.log(`✅ UPDATE executado - Linhas afetadas: ${rows.affectedRows}`)
+      return {
+        affectedRows: rows.affectedRows,
+        changes: rows.affectedRows
+      }
+    }
+    
+    if (sql.trim().toUpperCase().startsWith('DELETE')) {
+      console.log(`✅ DELETE executado - Linhas afetadas: ${rows.affectedRows}`)
+      return {
+        affectedRows: rows.affectedRows,
+        changes: rows.affectedRows
+      }
+    }
+    
+    // Para SELECT, retorna as rows
+    console.log(`✅ SELECT executado - ${rows.length} linha(s) retornada(s)`)
+    return rows
+  } catch (error) {
+    console.error('❌ Erro na query MySQL:')
+    console.error('   Mensagem:', error.message)
+    console.error('   Código:', error.code)
+    console.error('   SQL:', sql.substring(0, 200))
+    console.error('   Params:', JSON.stringify(params))
+    throw error
+  }
 }
 
-// Inicializa automaticamente
-initializeDatabase().catch(err => {
-  console.error('❌ Falha na inicialização:', err.message)
-  process.exit(1)
-})
+// Fecha o pool de conexões
+async function closeDatabase() {
+  if (pool) {
+    await pool.end()
+    console.log('��� Conexão MySQL encerrada')
+  }
+}
 
-module.exports = { query, get }
+module.exports = {
+  initializeDatabase,
+  query,
+  closeDatabase
+}

@@ -14,8 +14,8 @@
     "start:frontend": "cd frontend && npm start",
     "start:backend": "cd backend && npm start",
     "build": "cd frontend && npm run build",
-    "setup:db": "echo 'SQLite database is automatically created when the backend starts'",
-    "info:db": "echo 'Database file: backend/database/unisafe.db'"
+    "setup:db": "echo 'MySQL database hosted on Railway - No local setup needed'",
+    "info:db": "echo 'Database: MySQL (Railway) - Check backend/.env for DATABASE_URL'"
   },
   "repository": {
     "type": "git",
@@ -29,7 +29,7 @@
     "nextjs",
     "nodejs",
     "express",
-    "sqlite"
+    "mysql"
   ],
   "author": "UniSafe Team",
   "license": "MIT",

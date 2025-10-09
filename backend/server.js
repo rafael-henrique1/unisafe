@@ -7,7 +7,7 @@
  * Funcionalidades principais:
  * - Autenticação de usuários (login/cadastro)
  * - Gerenciamento de postagens de segurança
- * - Conexão com banco de dados SQLite
+ * - Conexão com banco de dados MySQL (Railway)
  * - Middlewares de segurança e CORS
  */
 
@@ -15,6 +15,7 @@ const express = require('express')
 const cors = require('cors')
 const helmet = require('helmet')
 const morgan = require('morgan')
+const db = require('./config/database')
 require('dotenv').config()
 
 // Importa as rotas da API
@@ -96,26 +97,42 @@ app.use((error, req, res, next) => {
 })
 
 // Inicia o servidor
-const server = app.listen(PORT, () => {
-  console.log(`
+async function startServer() {
+  try {
+    // Inicializa o banco de dados MySQL
+    await db.initializeDatabase()
+    
+    // Inicia o servidor Express
+    const server = app.listen(PORT, () => {
+      console.log(`
 ╔════════════════════════════════════════╗
 ║           🚀 UniSafe API               ║
 ║                                        ║
 ║  Servidor: http://localhost:${PORT}      ║
 ║  Status: ✅ Online                     ║
+║  Banco: MySQL (Railway)                ║
 ║  Ambiente: ${process.env.NODE_ENV || 'development'}              ║
 ║  Hora: ${new Date().toLocaleString('pt-BR')}   ║
 ╚════════════════════════════════════════╝
-  `)
-})
+      `)
+    })
 
-// Graceful shutdown
-process.on('SIGINT', () => {
-  console.log('\n🔄 Desligando servidor...')
-  server.close(() => {
-    console.log('✅ Servidor desligado com sucesso')
-    process.exit(0)
-  })
-})
+    // Graceful shutdown
+    process.on('SIGINT', async () => {
+      console.log('\n🔄 Desligando servidor...')
+      await db.closeDatabase()
+      server.close(() => {
+        console.log('✅ Servidor desligado com sucesso')
+        process.exit(0)
+      })
+    })
+  } catch (error) {
+    console.error('❌ Erro ao iniciar servidor:', error.message)
+    process.exit(1)
+  }
+}
+
+// Inicia a aplicação
+startServer()
 
 module.exports = app

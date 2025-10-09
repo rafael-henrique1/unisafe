@@ -47,8 +47,11 @@ router.post('/cadastro', [
 
     const { nome, email, senha, telefone } = req.body
 
+    console.log(`[CADASTRO] Tentativa de cadastro - Email: ${email}`)
+
     // Verifica se o nome tem pelo menos nome e sobrenome
     if (nome.trim().split(' ').length < 2) {
+      console.log(`[CADASTRO] Nome incompleto fornecido: ${nome}`)
       return res.status(400).json({
         success: false,
         message: 'Por favor, informe seu nome completo (nome e sobrenome)'
@@ -56,12 +59,14 @@ router.post('/cadastro', [
     }
 
     // Verifica se o email já está cadastrado
-    const emailExistente = await db.get(
+    console.log(`[CADASTRO] Verificando se email já existe: ${email}`)
+    const emailExistente = await db.query(
       'SELECT id FROM usuarios WHERE email = ?',
       [email]
     )
 
-    if (emailExistente) {
+    if (emailExistente.length > 0) {
+      console.log(`[CADASTRO] Email já cadastrado: ${email}`)
       return res.status(409).json({
         success: false,
         message: 'Este email já está em uso na comunidade'
@@ -69,13 +74,17 @@ router.post('/cadastro', [
     }
 
     // Criptografa a senha
+    console.log('[CADASTRO] Criptografando senha...')
     const senhaHash = await bcrypt.hash(senha, 12)
 
     // Insere o novo usuário no banco
+    console.log('[CADASTRO] Inserindo usuário no banco de dados...')
     const resultado = await db.query(
       'INSERT INTO usuarios (nome, email, senha, telefone) VALUES (?, ?, ?, ?)',
       [nome, email, senhaHash, telefone || null]
     )
+
+    console.log(`[CADASTRO] Usuário inserido com ID: ${resultado.lastID}`)
 
     // Gera token JWT para o novo usuário
     const token = jwt.sign(
@@ -88,7 +97,7 @@ router.post('/cadastro', [
       { expiresIn: '7d' }
     )
 
-    console.log(`[CADASTRO] Novo membro da comunidade: ${email}`)
+    console.log(`✅ [CADASTRO] Cadastro concluído com sucesso - Usuário: ${email}, ID: ${resultado.lastID}`)
 
     res.status(201).json({
       success: true,
@@ -104,10 +113,11 @@ router.post('/cadastro', [
     })
 
   } catch (error) {
-    console.error('[ERRO CADASTRO]', error)
+    console.error('❌ [ERRO CADASTRO]', error.message)
+    console.error('Stack:', error.stack)
     res.status(500).json({
       success: false,
-      message: 'Erro interno do servidor'
+      message: 'Erro interno do servidor ao processar cadastro'
     })
   }
 })
@@ -133,22 +143,30 @@ router.post('/login', [
 
     const { email, senha } = req.body
 
+    console.log(`[LOGIN] Tentativa de login - Email: ${email}`)
+
     // Busca o usuário no banco
-    const usuario = await db.get(
+    const usuarios = await db.query(
       'SELECT id, nome, email, senha, criado_em FROM usuarios WHERE email = ?',
       [email]
     )
 
+    const usuario = usuarios[0]
+
     if (!usuario) {
+      console.log(`[LOGIN] Usuário não encontrado: ${email}`)
       return res.status(401).json({
         success: false,
         message: 'Email ou senha incorretos'
       })
     }
 
+    console.log(`[LOGIN] Usuário encontrado - ID: ${usuario.id}, Nome: ${usuario.nome}`)
+
     // Verifica a senha
     const senhaValida = await bcrypt.compare(senha, usuario.senha)
     if (!senhaValida) {
+      console.log(`[LOGIN] Senha incorreta para: ${email}`)
       return res.status(401).json({
         success: false,
         message: 'Email ou senha incorretos'
@@ -166,7 +184,7 @@ router.post('/login', [
       { expiresIn: '7d' }
     )
 
-    console.log(`[LOGIN] Usuário autenticado: ${email}`)
+    console.log(`✅ [LOGIN] Login realizado com sucesso - Usuário: ${email}, ID: ${usuario.id}`)
 
     res.json({
       success: true,
@@ -182,10 +200,11 @@ router.post('/login', [
     })
 
   } catch (error) {
-    console.error('[ERRO LOGIN]', error)
+    console.error('❌ [ERRO LOGIN]', error.message)
+    console.error('Stack:', error.stack)
     res.status(500).json({
       success: false,
-      message: 'Erro interno do servidor'
+      message: 'Erro interno do servidor ao processar login'
     })
   }
 })

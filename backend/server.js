@@ -30,10 +30,21 @@ const PORT = env.PORT
 // Middlewares de segurança e utilidade
 app.use(helmet()) // Adiciona headers de segurança
 app.use(morgan('combined')) // Log das requisições
+
+// CORS dinâmico com suporte a múltiplos domínios
+const allowedOrigins = env.FRONTEND_URL ? env.FRONTEND_URL.split(',') : ['http://localhost:3000'];
 app.use(cors({
-  origin: ['http://localhost:3000', 'http://127.0.0.1:3000'], // Permite acesso do frontend Next.js
+  origin: (origin, callback) => {
+    if (!origin) return callback(null, true); // allow non-browser clients
+    if (allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      callback(new Error('Origin not allowed by CORS'));
+    }
+  },
   credentials: true
 }))
+
 app.use(express.json({ limit: '10mb' })) // Parser JSON para requisições
 app.use(express.urlencoded({ extended: true })) // Parser URL-encoded
 

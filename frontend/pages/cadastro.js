@@ -2,6 +2,7 @@ import { useState } from 'react'
 import Head from 'next/head'
 import Link from 'next/link'
 import { useRouter } from 'next/router'
+import { endpoints } from '../config/api'
 
 /**
  * Página de Cadastro do UniSafe
@@ -94,7 +95,7 @@ export default function Cadastro() {
 
     try {
       // Aqui será feita a chamada para a API de cadastro
-      const response = await fetch('http://localhost:5000/api/auth/cadastro', {
+      const response = await fetch(endpoints.cadastro, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'

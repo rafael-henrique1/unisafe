@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import Head from 'next/head'
 import Link from 'next/link'
+import { endpoints } from '../config/api'
 
 /**
  * Página do Feed de Postagens do UniSafe
@@ -67,7 +68,7 @@ export default function Feed() {
     try {
       setLoadingComentarios(prev => ({ ...prev, [postagemId]: true }))
       
-      const response = await fetch(`http://localhost:5000/api/postagens/${postagemId}/comentarios`)
+      const response = await fetch(endpoints.comentarios(postagemId))
       
       if (response.ok) {
         const data = await response.json()
@@ -120,7 +121,7 @@ export default function Feed() {
         return
       }
       
-      const response = await fetch(`http://localhost:5000/api/postagens/${postagemId}/comentarios`, {
+      const response = await fetch(endpoints.comentarios(postagemId), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -171,7 +172,7 @@ export default function Feed() {
         return
       }
 
-      const response = await fetch(`http://localhost:5000/api/postagens/${postagemId}/curtir`, {
+      const response = await fetch(endpoints.curtir(postagemId), {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -216,7 +217,7 @@ export default function Feed() {
       setLoading(true)
       setError('')
       
-      const response = await fetch('http://localhost:5000/api/postagens')
+      const response = await fetch(endpoints.postagens)
       
       if (response.ok) {
         const result = await response.json()
@@ -256,7 +257,7 @@ export default function Feed() {
       // Pega o token do localStorage (se houver)
       const token = localStorage.getItem('unisafe_token')
       
-      const response = await fetch('http://localhost:5000/api/postagens', {
+      const response = await fetch(endpoints.postar, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

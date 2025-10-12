@@ -2,6 +2,7 @@ import { useState } from 'react'
 import Head from 'next/head'
 import Link from 'next/link'
 import { useRouter } from 'next/router'
+import { endpoints } from '../config/api'
 
 /**
  * Página de Login do UniSafe
@@ -41,7 +42,7 @@ export default function Login() {
 
     try {
       // Aqui será feita a chamada para a API de login
-      const response = await fetch('http://localhost:5000/api/auth/login', {
+      const response = await fetch(endpoints.login, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'

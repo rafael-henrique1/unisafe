@@ -8,6 +8,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/router'
 import Head from 'next/head'
+import { endpoints } from '../config/api'
 
 export default function Perfil() {
   const router = useRouter()
@@ -61,7 +62,7 @@ export default function Perfil() {
 
       const user = JSON.parse(userData)
       
-      const response = await fetch(`http://localhost:5000/api/usuarios/${user.id}`, {
+      const response = await fetch(`${endpoints.usuarios}/${user.id}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -107,7 +108,7 @@ export default function Perfil() {
       const userData = localStorage.getItem('unisafe_user')
       const user = JSON.parse(userData)
 
-      const response = await fetch(`http://localhost:5000/api/usuarios/${user.id}`, {
+      const response = await fetch(`${endpoints.usuarios}/${user.id}`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -173,7 +174,7 @@ export default function Perfil() {
       const userData = localStorage.getItem('unisafe_user')
       const user = JSON.parse(userData)
 
-      const response = await fetch(`http://localhost:5000/api/usuarios/${user.id}`, {
+      const response = await fetch(`${endpoints.usuarios}/${user.id}`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,

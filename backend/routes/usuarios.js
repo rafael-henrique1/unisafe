@@ -13,9 +13,9 @@ const bcrypt = require('bcryptjs')
 const jwt = require('jsonwebtoken')
 const { body, validationResult } = require('express-validator')
 const db = require('../config/database')
+const { JWT_SECRET } = require('../config/env')
 
 const router = express.Router()
-const JWT_SECRET = process.env.JWT_SECRET || 'unisafe_jwt_secret_2024'
 
 /**
  * Middleware para verificar autenticação

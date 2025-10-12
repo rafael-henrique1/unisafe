@@ -15,8 +15,8 @@ const express = require('express')
 const cors = require('cors')
 const helmet = require('helmet')
 const morgan = require('morgan')
+const env = require('./config/env')
 const db = require('./config/database')
-require('dotenv').config()
 
 // Importa as rotas da API
 const authRoutes = require('./routes/auth')
@@ -25,7 +25,7 @@ const usuariosRoutes = require('./routes/usuarios')
 
 // Cria a instância do Express
 const app = express()
-const PORT = process.env.PORT || 5000
+const PORT = env.PORT
 
 // Middlewares de segurança e utilidade
 app.use(helmet()) // Adiciona headers de segurança

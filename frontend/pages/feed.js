@@ -42,6 +42,9 @@ export default function Feed() {
   
   // Ref para manter a instância do socket
   const socketRef = useRef(null)
+  
+  // Refs para detectar cliques fora dos posts expandidos
+  const postsRefs = useRef({})
 
   /**
    * Carrega as postagens do feed quando o componente monta
@@ -274,6 +277,34 @@ export default function Feed() {
       socketRef.current.emit('solicitar_notificacoes')
     }
   }
+
+  /**
+   * UseEffect para detectar cliques fora dos posts expandidos
+   * Fecha os comentários quando o usuário clica fora do post
+   */
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      // Para cada post expandido, verifica se o clique foi fora dele
+      Object.keys(comentariosExpandidos).forEach((postagemId) => {
+        if (comentariosExpandidos[postagemId] && postsRefs.current[postagemId]) {
+          const postElement = postsRefs.current[postagemId]
+          
+          // Se o clique foi fora do post, fecha os comentários
+          if (postElement && !postElement.contains(event.target)) {
+            setComentariosExpandidos(prev => ({ ...prev, [postagemId]: false }))
+          }
+        }
+      })
+    }
+
+    // Adiciona o event listener
+    document.addEventListener('mousedown', handleClickOutside)
+    
+    // Remove o event listener ao desmontar
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [comentariosExpandidos]) // Reexecuta quando os comentários expandidos mudam
 
   /**
    * Marca uma notificação como lida e redireciona para a postagem
@@ -938,7 +969,15 @@ export default function Feed() {
             ) : (
               // Lista de postagens
               Array.isArray(postagens) ? postagens.map((postagem, index) => (
-                <div key={postagem.id || index} className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow">
+                <div 
+                  key={postagem.id || index} 
+                  ref={(el) => {
+                    if (el) {
+                      postsRefs.current[postagem.id] = el
+                    }
+                  }}
+                  className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow"
+                >
                   {/* Header da postagem */}
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center space-x-3">

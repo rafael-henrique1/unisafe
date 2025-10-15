@@ -9,9 +9,12 @@
  * - Gerenciamento de postagens de segurança
  * - Conexão com banco de dados MySQL (Railway)
  * - Middlewares de segurança e CORS
+ * - Notificações em tempo real via Socket.IO
  */
 
 const express = require('express')
+const http = require('http') // ← HTTP para integrar Socket.IO
+const { Server } = require('socket.io') // ← Socket.IO para notificações em tempo real
 const cors = require('cors')
 const helmet = require('helmet')
 const morgan = require('morgan')
@@ -25,6 +28,10 @@ const usuariosRoutes = require('./routes/usuarios')
 
 // Cria a instância do Express
 const app = express()
+
+// Cria servidor HTTP (necessário para Socket.IO)
+const server = http.createServer(app)
+
 const PORT = env.PORT
 
 // Middlewares de segurança e utilidade
@@ -44,6 +51,14 @@ app.use(cors({
   },
   credentials: true
 }))
+
+// Configura Socket.IO com CORS (mesmas origens do Express)
+const io = new Server(server, {
+  cors: {
+    origin: allowedOrigins,
+    credentials: true
+  }
+})
 
 app.use(express.json({ limit: '10mb' })) // Parser JSON para requisições
 app.use(express.urlencoded({ extended: true })) // Parser URL-encoded
@@ -113,8 +128,12 @@ async function startServer() {
     // Inicializa o banco de dados MySQL
     await db.initializeDatabase()
     
-    // Inicia o servidor Express
-    const server = app.listen(PORT, () => {
+    // Configura Socket.IO (autenticação e eventos)
+    const setupSocket = require('./config/socket')
+    setupSocket(io)
+    
+    // Inicia o servidor HTTP (Express + Socket.IO)
+    server.listen(PORT, () => {
       console.log(`
 ╔════════════════════════════════════════╗
 ║           🚀 UniSafe API               ║
@@ -122,6 +141,7 @@ async function startServer() {
 ║  Servidor: http://localhost:${PORT}      ║
 ║  Status: ✅ Online                     ║
 ║  Banco: MySQL (Railway)                ║
+║  Socket.IO: ✅ Ativo                   ║
 ║  Ambiente: ${process.env.NODE_ENV || 'development'}              ║
 ║  Hora: ${new Date().toLocaleString('pt-BR')}   ║
 ╚════════════════════════════════════════╝
@@ -131,6 +151,7 @@ async function startServer() {
     // Graceful shutdown
     process.on('SIGINT', async () => {
       console.log('\n🔄 Desligando servidor...')
+      io.close() // ← Fecha conexões Socket.IO
       await db.closeDatabase()
       server.close(() => {
         console.log('✅ Servidor desligado com sucesso')
@@ -146,4 +167,5 @@ async function startServer() {
 // Inicia a aplicação
 startServer()
 
-module.exports = app
+// Exporta app e io para uso em outros módulos (ex: rotas)
+module.exports = { app, io }

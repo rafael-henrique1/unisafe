@@ -1,11 +1,14 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import Head from 'next/head'
 import Link from 'next/link'
 import { endpoints } from '../config/api'
+import { io } from 'socket.io-client' // ← Import Socket.IO client
+import API_URL from '../config/api' // ← URL da API para conexão Socket
 
 /**
  * Página do Feed de Postagens do UniSafe
  * Exibe as postagens de segurança da comunidade
+ * Integrado com Socket.IO para notificações em tempo real
  */
 export default function Feed() {
   // Estados para controlar o feed
@@ -26,12 +29,251 @@ export default function Feed() {
   // Estados para controlar curtidas
   const [curtindoPostagem, setCurtindoPostagem] = useState({})
 
+  // Estados para notificações em tempo real
+  const [notificacoes, setNotificacoes] = useState([])
+  const [notificacoesNaoLidas, setNotificacoesNaoLidas] = useState(0)
+  const [mostrarNotificacoes, setMostrarNotificacoes] = useState(false)
+  
+  // Ref para manter a instância do socket
+  const socketRef = useRef(null)
+
   /**
    * Carrega as postagens do feed quando o componente monta
    */
   useEffect(() => {
     carregarPostagens()
   }, [])
+
+  /**
+   * ============================================================================
+   * SOCKET.IO - Conexão e Eventos em Tempo Real
+   * ============================================================================
+   * Este useEffect gerencia a conexão WebSocket e todos os event listeners.
+   * IMPORTANTE: Usa callbacks que NÃO dependem de closures de estado antigo.
+   */
+  useEffect(() => {
+    const token = localStorage.getItem('unisafe_token')
+    
+    if (!token) {
+      console.warn('[SOCKET] ⚠️ Nenhum token encontrado - Socket.IO não conectado')
+      return
+    }
+
+    console.log(`[SOCKET] 🔌 Iniciando conexão com ${API_URL}`)
+    
+    // ========================================
+    // Cria instância do Socket.IO
+    // ========================================
+    const socket = io(API_URL, {
+      auth: { token },
+      reconnection: true,
+      reconnectionDelay: 1000,
+      reconnectionAttempts: 5
+    })
+
+    socketRef.current = socket
+
+    // ========================================
+    // EVENTO: Conexão estabelecida
+    // ========================================
+    socket.on('connected', (data) => {
+      console.log('[SOCKET] ✅ CONECTADO:', data)
+      console.log('[SOCKET] 📍 User ID:', data.userId)
+      console.log('[SOCKET] 👤 Nome:', data.userName)
+    })
+
+    // ========================================
+    // EVENTO: Nova Postagem (Broadcast)
+    // ========================================
+    socket.on('nova_postagem', (postagem) => {
+      console.log('[SOCKET] 📢 Nova postagem recebida:', postagem)
+      
+      // Usa callback funcional para evitar closure stale
+      setPostagens(prevPostagens => {
+        // Evita duplicatas
+        const jaExiste = prevPostagens.some(p => p.id === postagem.id)
+        if (jaExiste) return prevPostagens
+        
+        // Adiciona no topo do feed
+        return [{
+          id: postagem.id,
+          usuario: postagem.usuario,
+          usuario_id: postagem.usuario_id,
+          conteudo: postagem.conteudo,
+          tipo: postagem.tipo,
+          data: 'Agora mesmo',
+          curtidas: 0,
+          comentarios: 0,
+          usuarioCurtiu: false
+        }, ...prevPostagens]
+      })
+    })
+
+    // ========================================
+    // EVENTO: Nova Curtida (Atualiza contador)
+    // ========================================
+    socket.on('nova_curtida', (curtida) => {
+      console.log('[SOCKET] ❤️ Nova curtida recebida:', curtida)
+      
+      setPostagens(prevPostagens => 
+        prevPostagens.map(p => {
+          if (p.id === curtida.postagemId) {
+            return {
+              ...p,
+              curtidas: p.curtidas + 1,
+              // Se o usuário atual curtiu, marca como true
+              usuarioCurtiu: curtida.usuarioId === JSON.parse(localStorage.getItem('unisafe_user'))?.id 
+                ? true 
+                : p.usuarioCurtiu
+            }
+          }
+          return p
+        })
+      )
+    })
+
+    // ========================================
+    // EVENTO: Novo Comentário (Atualiza contador e lista)
+    // ========================================
+    socket.on('novo_comentario', (comentario) => {
+      console.log('[SOCKET] 💬 Novo comentário recebido:', comentario)
+      
+      // Incrementa contador de comentários
+      setPostagens(prevPostagens => 
+        prevPostagens.map(p => 
+          p.id === comentario.postagemId
+            ? { ...p, comentarios: p.comentarios + 1 }
+            : p
+        )
+      )
+
+      // Adiciona à lista SE estiver expandida
+      setComentarios(prevComentarios => {
+        const comentariosDaPostagem = prevComentarios[comentario.postagemId]
+        if (!comentariosDaPostagem) return prevComentarios // Não está expandida
+        
+        return {
+          ...prevComentarios,
+          [comentario.postagemId]: [
+            ...comentariosDaPostagem,
+            {
+              usuario: comentario.nomeUsuario,
+              conteudo: comentario.conteudo,
+              data: 'Agora mesmo'
+            }
+          ]
+        }
+      })
+    })
+
+    // ========================================
+    // EVENTO: Notificação Pessoal (APENAS para você)
+    // ========================================
+    socket.on('notificacao', (notificacao) => {
+      console.log('[SOCKET] 🔔 NOTIFICAÇÃO RECEBIDA:', notificacao)
+      
+      // Adiciona à lista de notificações
+      setNotificacoes(prev => [notificacao, ...prev])
+      
+      // Incrementa contador de não lidas
+      setNotificacoesNaoLidas(prev => prev + 1)
+      
+      // Mostra toast/alerta
+      exibirToast(notificacao)
+    })
+
+    // ========================================
+    // EVENTO: Lista de notificações
+    // ========================================
+    socket.on('lista_notificacoes', (lista) => {
+      console.log('[SOCKET] 📬 Lista de notificações:', lista.length)
+      setNotificacoes(lista)
+      setNotificacoesNaoLidas(lista.filter(n => !n.lida).length)
+    })
+
+    // ========================================
+    // EVENTO: Total de não lidas
+    // ========================================
+    socket.on('total_nao_lidas', (total) => {
+      console.log('[SOCKET] 📊 Total não lidas:', total)
+      setNotificacoesNaoLidas(total)
+    })
+
+    // ========================================
+    // EVENTO: Erro
+    // ========================================
+    socket.on('erro', (erro) => {
+      console.error('[SOCKET] ❌ ERRO:', erro)
+    })
+
+    // ========================================
+    // EVENTO: Reconexão
+    // ========================================
+    socket.on('reconnect', (attemptNumber) => {
+      console.log(`[SOCKET] 🔄 Reconectado após ${attemptNumber} tentativas`)
+    })
+
+    // ========================================
+    // CLEANUP: Desconecta ao desmontar
+    // ========================================
+    return () => {
+      console.log('[SOCKET] 🔌 Desconectando...')
+      socket.disconnect()
+      socketRef.current = null
+    }
+  }, []) // ✅ Sem dependências - executa apenas 1 vez
+
+  /**
+   * Exibe toast de notificação (simples com console.log)
+   * TODO: Substituir por biblioteca de toast (react-hot-toast, sonner, etc)
+   */
+  const exibirToast = (notificacao) => {
+    const emoji = notificacao.tipo === 'curtida' ? '❤️' : '💬'
+    console.log(`🔔 ${emoji} ${notificacao.mensagem}`)
+    
+    // Opcional: Usar alert temporário (pode irritar usuário)
+    // alert(`${emoji} ${notificacao.mensagem}`)
+  }
+
+  /**
+   * Alterna visibilidade do painel de notificações
+   */
+  const toggleNotificacoes = () => {
+    const novoEstado = !mostrarNotificacoes
+    setMostrarNotificacoes(novoEstado)
+    
+    // Se abriu o painel, solicita lista atualizada
+    if (novoEstado && socketRef.current) {
+      socketRef.current.emit('solicitar_notificacoes')
+    }
+  }
+
+  /**
+   * Marca uma notificação como lida
+   */
+  const marcarComoLida = (notificacaoId) => {
+    if (socketRef.current) {
+      socketRef.current.emit('marcar_lida', notificacaoId)
+      
+      // Atualiza localmente
+      setNotificacoes(prev => 
+        prev.map(n => n.id === notificacaoId ? { ...n, lida: true } : n)
+      )
+    }
+  }
+
+  /**
+   * Marca TODAS as notificações como lidas
+   */
+  const marcarTodasLidas = () => {
+    if (socketRef.current) {
+      socketRef.current.emit('marcar_todas_lidas')
+      
+      // Atualiza localmente
+      setNotificacoes(prev => prev.map(n => ({ ...n, lida: true })))
+      setNotificacoesNaoLidas(0)
+    }
+  }
 
   /**
    * Formatar data para exibição
@@ -347,6 +589,24 @@ export default function Feed() {
                     'Bem-vindo!'
                   }
                 </span>
+                
+                {/* Sino de notificações */}
+                <button
+                  onClick={toggleNotificacoes}
+                  className="relative text-primary-600 hover:text-primary-800"
+                  title="Notificações"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                  </svg>
+                  {/* Badge com número de notificações não lidas */}
+                  {notificacoesNaoLidas > 0 && (
+                    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
+                      {notificacoesNaoLidas > 9 ? '9+' : notificacoesNaoLidas}
+                    </span>
+                  )}
+                </button>
+                
                 <Link 
                   href="/perfil"
                   className="text-primary-600 hover:text-primary-800 flex items-center"
@@ -371,9 +631,107 @@ export default function Feed() {
           </div>
         </header>
 
+        {/* ============================================================================
+            PAINEL DE NOTIFICAÇÕES (Dropdown)
+            ============================================================================ */}
+        {mostrarNotificacoes && (
+          <div className="fixed top-20 right-4 w-96 bg-white rounded-lg shadow-2xl border border-gray-200 z-50 max-h-[80vh] overflow-hidden flex flex-col">
+            {/* Cabeçalho do painel */}
+            <div className="px-4 py-3 border-b border-gray-200 flex justify-between items-center bg-primary-50">
+              <h3 className="font-semibold text-gray-900 flex items-center">
+                <svg className="w-5 h-5 mr-2 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                </svg>
+                Notificações ({notificacoesNaoLidas})
+              </h3>
+              <div className="flex gap-2">
+                {notificacoesNaoLidas > 0 && (
+                  <button
+                    onClick={marcarTodasLidas}
+                    className="text-xs text-primary-600 hover:text-primary-800 hover:underline"
+                  >
+                    Marcar todas lidas
+                  </button>
+                )}
+                <button
+                  onClick={() => setMostrarNotificacoes(false)}
+                  className="text-gray-500 hover:text-gray-700"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            {/* Lista de notificações */}
+            <div className="overflow-y-auto flex-1">
+              {notificacoes.length === 0 ? (
+                <div className="p-8 text-center text-gray-500">
+                  <svg className="w-16 h-16 mx-auto mb-3 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+                  </svg>
+                  <p className="text-sm">Nenhuma notificação</p>
+                  <p className="text-xs mt-1">Você está em dia! 🎉</p>
+                </div>
+              ) : (
+                <ul className="divide-y divide-gray-100">
+                  {notificacoes.map((notif, index) => (
+                    <li
+                      key={notif.id || index}
+                      onClick={() => !notif.lida && marcarComoLida(notif.id)}
+                      className={`px-4 py-3 hover:bg-gray-50 transition cursor-pointer ${
+                        !notif.lida ? 'bg-blue-50' : ''
+                      }`}
+                    >
+                      <div className="flex items-start">
+                        {/* Ícone baseado no tipo */}
+                        <div className={`mr-3 mt-1 ${
+                          notif.tipo === 'curtida' ? 'text-red-500' : 'text-blue-500'
+                        }`}>
+                          {notif.tipo === 'curtida' ? (
+                            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clipRule="evenodd" />
+                            </svg>
+                          ) : (
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                            </svg>
+                          )}
+                        </div>
+
+                        {/* Conteúdo da notificação */}
+                        <div className="flex-1 min-w-0">
+                          <p className={`text-sm ${!notif.lida ? 'font-semibold text-gray-900' : 'text-gray-700'}`}>
+                            {notif.mensagem}
+                          </p>
+                          {notif.remetente_nome && (
+                            <p className="text-xs text-gray-500 mt-1">
+                              Por: {notif.remetente_nome}
+                            </p>
+                          )}
+                          <p className="text-xs text-gray-400 mt-1">
+                            {formatarData(notif.criada_em || notif.timestamp)}
+                          </p>
+                        </div>
+
+                        {/* Indicador de não lida */}
+                        {!notif.lida && (
+                          <div className="ml-2 mt-1">
+                            <span className="inline-block w-2 h-2 bg-blue-500 rounded-full"></span>
+                          </div>
+                        )}
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Conteúdo principal */}
-        <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          {/* Formulário para nova postagem */}
+        <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">{/* Formulário para nova postagem */}
           <div className="bg-white rounded-lg shadow-md p-6 mb-8">
             <h2 className="text-lg font-semibold text-gray-900 mb-4">
               Compartilhar informação de segurança

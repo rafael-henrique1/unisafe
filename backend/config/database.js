@@ -119,6 +119,23 @@ async function createTables() {
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
     `)
 
+    // Tabela de notificações (para sistema de notificações em tempo real)
+    await pool.execute(`
+      CREATE TABLE IF NOT EXISTS notificacoes (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        usuario_id INT NOT NULL,
+        remetente_id INT NULL,
+        tipo ENUM('postagem', 'curtida', 'comentario', 'sistema') NOT NULL,
+        mensagem VARCHAR(255) NOT NULL,
+        lida BOOLEAN DEFAULT FALSE,
+        criada_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE,
+        FOREIGN KEY (remetente_id) REFERENCES usuarios(id) ON DELETE SET NULL,
+        INDEX idx_usuario_lida (usuario_id, lida),
+        INDEX idx_criada_em (criada_em)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    `)
+
     console.log('✅ Tabelas criadas com sucesso!')
   } catch (error) {
     console.error('❌ Erro ao criar tabelas:', error.message)

@@ -8,6 +8,8 @@
  * - PUT /api/postagens/:id - Atualizar postagem
  * - DELETE /api/postagens/:id - Deletar postagem
  * - POST /api/postagens/:id/curtir - Curtir/descurtir postagem
+ * 
+ * Integração Socket.IO para notificações em tempo real
  */
 
 const express = require('express')
@@ -15,8 +17,14 @@ const jwt = require('jsonwebtoken')
 const { body, validationResult } = require('express-validator')
 const db = require('../config/database')
 const { JWT_SECRET } = require('../config/env')
+const { emitirNovaPostagem, emitirNovaCurtida, emitirNovoComentario } = require('../config/socket')
 
 const router = express.Router()
+
+// ✅ Função helper para obter io de forma dinâmica (evita circular dependency)
+const getIO = () => {
+  return require('../server').io
+}
 
 /**
  * Middleware para verificar autenticação
@@ -199,6 +207,16 @@ router.post('/', verificarAuth, [
 
     console.log(`✅ [CRIAR POSTAGEM] Postagem criada - ID: ${resultado.lastID}, Tipo: ${tipo}`)
 
+    // Emite evento Socket.IO para notificar todos os usuários conectados
+    emitirNovaPostagem(getIO(), {
+      id: resultado.lastID,
+      usuario: req.usuario.nome,
+      usuario_id: usuarioId, // ✅ Adicionado para evitar auto-notificação
+      conteudo,
+      tipo,
+      criado_em: new Date().toISOString()
+    })
+
     res.status(201).json({
       success: true,
       message: 'Postagem criada com sucesso!',
@@ -307,8 +325,8 @@ router.post('/:id/curtir', verificarAuth, async (req, res) => {
 
     console.log(`[CURTIR] Usuário ID ${usuarioId} tentando curtir postagem ID ${id}`)
 
-    // Verifica se a postagem existe
-    const postagens = await db.query('SELECT id FROM postagens WHERE id = ?', [id])
+    // Verifica se a postagem existe e busca o autor
+    const postagens = await db.query('SELECT id, usuario_id FROM postagens WHERE id = ?', [id])
     if (postagens.length === 0) {
       console.log(`[CURTIR] Postagem ID ${id} não encontrada`)
       return res.status(404).json({
@@ -316,6 +334,8 @@ router.post('/:id/curtir', verificarAuth, async (req, res) => {
         message: 'Postagem não encontrada'
       })
     }
+
+    const autorPostagemId = postagens[0].usuario_id
 
     // Verifica se o usuário já curtiu
     const curtidaExistente = await db.query(
@@ -340,6 +360,14 @@ router.post('/:id/curtir', verificarAuth, async (req, res) => {
         [id, usuarioId]
       )
       console.log(`✅ [CURTIR] Curtida adicionada - Postagem ID ${id}, Usuário ID ${usuarioId}`)
+      
+      // Emite evento Socket.IO de nova curtida
+      emitirNovaCurtida(getIO(), {
+        postagemId: id,
+        usuarioId,
+        autorPostagemId,
+        nomeUsuario: req.usuario.nome
+      })
       
       res.json({
         success: true,
@@ -386,8 +414,8 @@ router.post('/:id/comentarios', verificarAuth, [
       })
     }
 
-    // Verifica se a postagem existe
-    const postagens = await db.query('SELECT id FROM postagens WHERE id = ?', [id])
+    // Verifica se a postagem existe e busca o autor
+    const postagens = await db.query('SELECT id, usuario_id FROM postagens WHERE id = ?', [id])
     if (postagens.length === 0) {
       console.log(`[COMENTAR] Postagem ID ${id} não encontrada`)
       return res.status(404).json({
@@ -395,6 +423,8 @@ router.post('/:id/comentarios', verificarAuth, [
         message: 'Postagem não encontrada'
       })
     }
+
+    const autorPostagemId = postagens[0].usuario_id
 
     // Insere o comentário
     const resultado = await db.query(
@@ -417,6 +447,15 @@ router.post('/:id/comentarios', verificarAuth, [
     `, [resultado.lastID])
 
     console.log(`✅ [COMENTAR] Comentário completo criado com sucesso`)
+
+    // Emite evento Socket.IO de novo comentário
+    emitirNovoComentario(getIO(), {
+      postagemId: id,
+      usuarioId,
+      autorPostagemId,
+      nomeUsuario: req.usuario.nome,
+      conteudo: novoComentario[0].conteudo
+    })
 
     res.status(201).json({
       success: true,

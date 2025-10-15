@@ -32,6 +32,7 @@ const app = express()
 // Cria servidor HTTP (necessário para Socket.IO)
 const server = http.createServer(app)
 
+
 const PORT = env.PORT
 
 // Middlewares de segurança e utilidade
@@ -100,6 +101,7 @@ app.use('/api/usuarios', usuariosRoutes) // Rotas de usuários
 // Rota para login (compatibilidade)
 app.use('/api/login', authRoutes)
 app.use('/api/cadastro', authRoutes)
+
 
 // Middleware de tratamento de erros 404
 app.use('*', (req, res) => {

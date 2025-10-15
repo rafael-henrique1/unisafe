@@ -248,7 +248,7 @@ async function emitirNovaCurtida(io, curtida) {
     if (autorPostagemId && autorPostagemId !== usuarioId) {
       console.log(`[SOCKET] ✅ Autor é diferente! Enviando notificação...`)
       
-      // 1. Salva notificação no banco de dados
+      // 1. Salva notificação no banco de dados (SEM postagem_id por enquanto)
       await db.query(`
         INSERT INTO notificacoes (usuario_id, remetente_id, tipo, mensagem)
         VALUES (?, ?, 'curtida', ?)
@@ -273,12 +273,7 @@ async function emitirNovaCurtida(io, curtida) {
     
     console.log(`[SOCKET] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`)
     
-    // 3. Broadcast para TODOS (atualiza contador de curtidas no feed)
-    io.emit('nova_curtida', {
-      postagemId,
-      usuarioId,
-      nomeUsuario
-    })
+    // O broadcast é feito em postagens.js com totalCurtidas e acao
     
   } catch (error) {
     console.error('[SOCKET] ❌ Erro ao emitir nova_curtida:', error)
@@ -305,7 +300,7 @@ async function emitirNovoComentario(io, comentario) {
     if (autorPostagemId && autorPostagemId !== usuarioId) {
       console.log(`[SOCKET] ✅ Autor é diferente! Enviando notificação...`)
       
-      // 1. Salva notificação no banco de dados
+      // 1. Salva notificação no banco de dados (SEM postagem_id por enquanto)
       await db.query(`
         INSERT INTO notificacoes (usuario_id, remetente_id, tipo, mensagem)
         VALUES (?, ?, 'comentario', ?)

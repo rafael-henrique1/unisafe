@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import Head from 'next/head'
 import Link from 'next/link'
+import { useRouter } from 'next/router'
 import { endpoints } from '../config/api'
 import { io } from 'socket.io-client' // ← Import Socket.IO client
 import API_URL from '../config/api' // ← URL da API para conexão Socket
@@ -11,6 +12,8 @@ import API_URL from '../config/api' // ← URL da API para conexão Socket
  * Integrado com Socket.IO para notificações em tempo real
  */
 export default function Feed() {
+  const router = useRouter()
+  
   // Estados para controlar o feed
   const [postagens, setPostagens] = useState([])
   const [loading, setLoading] = useState(true)
@@ -34,6 +37,9 @@ export default function Feed() {
   const [notificacoesNaoLidas, setNotificacoesNaoLidas] = useState(0)
   const [mostrarNotificacoes, setMostrarNotificacoes] = useState(false)
   
+  // Estado para nome do usuário (evita erro de hidratação)
+  const [nomeUsuario, setNomeUsuario] = useState('')
+  
   // Ref para manter a instância do socket
   const socketRef = useRef(null)
 
@@ -41,6 +47,12 @@ export default function Feed() {
    * Carrega as postagens do feed quando o componente monta
    */
   useEffect(() => {
+    // Carrega o nome do usuário
+    const userData = localStorage.getItem('unisafe_user')
+    if (userData) {
+      setNomeUsuario(JSON.parse(userData).nome)
+    }
+    
     carregarPostagens()
   }, [])
 
@@ -110,48 +122,34 @@ export default function Feed() {
     })
 
     // ========================================
-    // EVENTO: Nova Curtida (Atualiza contador)
-    // ========================================
-    socket.on('nova_curtida', (curtida) => {
-      console.log('[SOCKET] ❤️ Nova curtida recebida:', curtida)
-      
-      setPostagens(prevPostagens => 
-        prevPostagens.map(p => {
-          if (p.id === curtida.postagemId) {
-            return {
-              ...p,
-              curtidas: p.curtidas + 1,
-              // Se o usuário atual curtiu, marca como true
-              usuarioCurtiu: curtida.usuarioId === JSON.parse(localStorage.getItem('unisafe_user'))?.id 
-                ? true 
-                : p.usuarioCurtiu
-            }
-          }
-          return p
-        })
-      )
-    })
-
-    // ========================================
     // EVENTO: Novo Comentário (Atualiza contador e lista)
     // ========================================
     socket.on('novo_comentario', (comentario) => {
       console.log('[SOCKET] 💬 Novo comentário recebido:', comentario)
+      console.log('[COMENTARIO] ID da postagem no evento:', comentario.postagemId, 'Tipo:', typeof comentario.postagemId)
       
       // Incrementa contador de comentários
-      setPostagens(prevPostagens => 
-        prevPostagens.map(p => 
-          p.id === comentario.postagemId
-            ? { ...p, comentarios: p.comentarios + 1 }
-            : p
-        )
-      )
+      setPostagens(prevPostagens => {
+        console.log('[COMENTARIO] Total de postagens no estado:', prevPostagens.length)
+        return prevPostagens.map(p => {
+          console.log('[COMENTARIO] Comparando:', p.id, 'Tipo:', typeof p.id, 'com', comentario.postagemId)
+          if (p.id == comentario.postagemId) { // Usar == para comparar valores independente do tipo
+            console.log('[COMENTARIO] ✅ MATCH! Incrementando contador:', p.comentarios, '→', p.comentarios + 1)
+            return { ...p, comentarios: p.comentarios + 1 }
+          }
+          return p
+        })
+      })
 
       // Adiciona à lista SE estiver expandida
       setComentarios(prevComentarios => {
         const comentariosDaPostagem = prevComentarios[comentario.postagemId]
-        if (!comentariosDaPostagem) return prevComentarios // Não está expandida
+        if (!comentariosDaPostagem) {
+          console.log('[COMENTARIO] Lista não expandida, não adiciona à lista')
+          return prevComentarios
+        }
         
+        console.log('[COMENTARIO] Adicionando à lista expandida')
         return {
           ...prevComentarios,
           [comentario.postagemId]: [
@@ -249,16 +247,32 @@ export default function Feed() {
   }
 
   /**
-   * Marca uma notificação como lida
+   * Marca uma notificação como lida e redireciona para a postagem
    */
-  const marcarComoLida = (notificacaoId) => {
-    if (socketRef.current) {
-      socketRef.current.emit('marcar_lida', notificacaoId)
+  const marcarComoLida = async (notificacaoId) => {
+    try {
+      // Busca a notificação localmente
+      const notificacao = notificacoes.find(n => n.id === notificacaoId)
       
-      // Atualiza localmente
-      setNotificacoes(prev => 
-        prev.map(n => n.id === notificacaoId ? { ...n, lida: true } : n)
-      )
+      if (!notificacao) return
+      
+      // Se já está lida, não faz nada
+      if (notificacao.lida) return
+      
+      // Emite evento Socket.IO para marcar como lida
+      if (socketRef.current) {
+        socketRef.current.emit('marcar_lida', notificacaoId)
+        
+        // Atualiza localmente
+        setNotificacoes(prev => 
+          prev.map(n => n.id === notificacaoId ? { ...n, lida: true } : n)
+        )
+        
+        // Decrementa contador de não lidas
+        setNotificacoesNaoLidas(prev => Math.max(0, prev - 1))
+      }
+    } catch (error) {
+      console.error('Erro ao marcar notificação como lida:', error)
     }
   }
 
@@ -354,6 +368,7 @@ export default function Feed() {
     }
 
     try {
+      console.log('[COMENTARIO] Enviando comentário para postagem:', postagemId)
       setEnviandoComentario(prev => ({ ...prev, [postagemId]: true }))
 
       const token = localStorage.getItem('unisafe_token')
@@ -374,27 +389,22 @@ export default function Feed() {
 
       if (response.ok) {
         const data = await response.json()
+        console.log('[COMENTARIO] Resposta do backend:', data)
         
-        // Adiciona o novo comentário à lista
-        setComentarios(prev => ({
-          ...prev,
-          [postagemId]: [...(prev[postagemId] || []), data.data]
-        }))
-
+        // NÃO adiciona localmente - deixa o Socket.IO fazer isso
+        // para evitar duplicação
+        
         // Limpa o campo de texto
         setNovoComentario(prev => ({ ...prev, [postagemId]: '' }))
 
-        // Atualiza o contador de comentários na postagem
-        setPostagens(prev => prev.map(p => 
-          p.id === postagemId 
-            ? { ...p, comentarios: (p.comentarios || 0) + 1 }
-            : p
-        ))
+        // NÃO atualiza contador localmente - Socket.IO já faz
+        
+        console.log('[COMENTARIO] Comentário enviado, aguardando Socket.IO...')
       } else {
-        console.error('Erro ao adicionar comentário')
+        console.error('[COMENTARIO] Erro ao adicionar - Status:', response.status)
       }
     } catch (error) {
-      console.error('Erro ao adicionar comentário:', error)
+      console.error('[COMENTARIO] Erro ao adicionar comentário:', error)
     } finally {
       setEnviandoComentario(prev => ({ ...prev, [postagemId]: false }))
     }
@@ -406,6 +416,7 @@ export default function Feed() {
    */
   const toggleCurtida = async (postagemId) => {
     try {
+      console.log('[CURTIR] Curtindo postagem:', postagemId)
       setCurtindoPostagem(prev => ({ ...prev, [postagemId]: true }))
 
       const token = localStorage.getItem('unisafe_token')
@@ -424,22 +435,27 @@ export default function Feed() {
 
       if (response.ok) {
         const data = await response.json()
+        console.log('[CURTIR] Resposta do backend:', data)
+        console.log('[CURTIR] Total curtidas recebido:', data.totalCurtidas)
+        console.log('[CURTIR] Ação recebida:', data.action)
         
-        // Atualiza o estado da postagem
+        // Atualiza o estado da postagem usando o total do backend
         setPostagens(prev => prev.map(p => {
           if (p.id === postagemId) {
-            return {
+            const novoEstado = {
               ...p,
               usuarioCurtiu: data.action === 'added',
-              curtidas: data.action === 'added' 
-                ? (p.curtidas || 0) + 1 
-                : Math.max((p.curtidas || 0) - 1, 0)
+              curtidas: data.totalCurtidas !== undefined ? data.totalCurtidas : p.curtidas
             }
+            console.log('[CURTIR] Estado anterior curtidas:', p.curtidas)
+            console.log('[CURTIR] Novo estado curtidas:', novoEstado.curtidas)
+            console.log('[CURTIR] Usuário curtiu?', novoEstado.usuarioCurtiu)
+            return novoEstado
           }
           return p
         }))
       } else {
-        console.error('Erro ao curtir postagem')
+        console.error('Erro ao curtir postagem - Status:', response.status)
         if (response.status === 401) {
           alert('Sessão expirada. Por favor, faça login novamente.')
         }
@@ -466,7 +482,13 @@ export default function Feed() {
         console.log('API Response:', result) // Debug
         
         if (result.success && Array.isArray(result.data)) {
-          setPostagens(result.data)
+          // Mapeia os dados para garantir compatibilidade
+          const postagensFormatadas = result.data.map(p => ({
+            ...p,
+            curtidas: p.total_curtidas || p.curtidas || 0,
+            comentarios: p.total_comentarios || p.comentarios || 0
+          }))
+          setPostagens(postagensFormatadas)
         } else {
           console.error('Formato de resposta inválido:', result)
           setError('Erro no formato dos dados')
@@ -584,10 +606,7 @@ export default function Feed() {
               </Link>
               <nav className="flex items-center space-x-4">
                 <span className="text-gray-700">
-                  {typeof window !== 'undefined' && localStorage.getItem('unisafe_user') ? 
-                    `Olá, ${JSON.parse(localStorage.getItem('unisafe_user')).nome}!` : 
-                    'Bem-vindo!'
-                  }
+                  {nomeUsuario ? `Olá, ${nomeUsuario}!` : 'Bem-vindo!'}
                 </span>
                 
                 {/* Sino de notificações */}
@@ -679,7 +698,8 @@ export default function Feed() {
                   {notificacoes.map((notif, index) => (
                     <li
                       key={notif.id || index}
-                      onClick={() => !notif.lida && marcarComoLida(notif.id)}
+                      onClick={() => marcarComoLida(notif.id)}
+                      title={!notif.lida ? 'Clique para marcar como lida' : 'Já lida'}
                       className={`px-4 py-3 hover:bg-gray-50 transition cursor-pointer ${
                         !notif.lida ? 'bg-blue-50' : ''
                       }`}

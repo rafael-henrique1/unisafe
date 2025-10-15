@@ -346,12 +346,21 @@ router.post('/:id/curtir', verificarAuth, async (req, res) => {
     if (curtidaExistente.length > 0) {
       // Remove a curtida
       await db.query('DELETE FROM curtidas WHERE postagem_id = ? AND usuario_id = ?', [id, usuarioId])
-      console.log(`✅ [CURTIR] Curtida removida - Postagem ID ${id}, Usuário ID ${usuarioId}`)
+      
+      // Busca total DEPOIS de remover
+      const totalCurtidasResult = await db.query(
+        'SELECT COUNT(*) as total FROM curtidas WHERE postagem_id = ?',
+        [id]
+      )
+      const totalCurtidas = totalCurtidasResult[0].total
+      
+      console.log(`[CURTIR] ❌ Curtida removida - Total agora: ${totalCurtidas}`)
       
       res.json({
         success: true,
         message: 'Curtida removida',
-        action: 'removed'
+        action: 'removed',
+        totalCurtidas
       })
     } else {
       // Adiciona a curtida
@@ -359,10 +368,19 @@ router.post('/:id/curtir', verificarAuth, async (req, res) => {
         'INSERT INTO curtidas (postagem_id, usuario_id, criado_em) VALUES (?, ?, NOW())',
         [id, usuarioId]
       )
-      console.log(`✅ [CURTIR] Curtida adicionada - Postagem ID ${id}, Usuário ID ${usuarioId}`)
       
-      // Emite evento Socket.IO de nova curtida
-      emitirNovaCurtida(getIO(), {
+      // Busca total DEPOIS de adicionar
+      const totalCurtidasResult = await db.query(
+        'SELECT COUNT(*) as total FROM curtidas WHERE postagem_id = ?',
+        [id]
+      )
+      const totalCurtidas = totalCurtidasResult[0].total
+      
+      console.log(`[CURTIR] ✅ Curtida adicionada - Total agora: ${totalCurtidas}`)
+      
+      // Emite notificação privada para o autor (se não for ele mesmo)
+      const ioInstance = getIO()
+      emitirNovaCurtida(ioInstance, {
         postagemId: id,
         usuarioId,
         autorPostagemId,
@@ -372,7 +390,8 @@ router.post('/:id/curtir', verificarAuth, async (req, res) => {
       res.json({
         success: true,
         message: 'Postagem curtida',
-        action: 'added'
+        action: 'added',
+        totalCurtidas
       })
     }
 
@@ -448,14 +467,21 @@ router.post('/:id/comentarios', verificarAuth, [
 
     console.log(`✅ [COMENTAR] Comentário completo criado com sucesso`)
 
+    // Debug: Verifica se getIO() retorna io válido
+    const ioInstance = getIO()
+    console.log('[DEBUG] getIO():', ioInstance ? 'OK' : 'UNDEFINED')
+    console.log('[DEBUG] Chamando emitirNovoComentario...')
+    
     // Emite evento Socket.IO de novo comentário
-    emitirNovoComentario(getIO(), {
+    emitirNovoComentario(ioInstance, {
       postagemId: id,
       usuarioId,
       autorPostagemId,
       nomeUsuario: req.usuario.nome,
       conteudo: novoComentario[0].conteudo
     })
+    
+    console.log('[DEBUG] emitirNovoComentario chamado')
 
     res.status(201).json({
       success: true,

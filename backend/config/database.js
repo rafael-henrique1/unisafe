@@ -125,16 +125,36 @@ async function createTables() {
         id INT AUTO_INCREMENT PRIMARY KEY,
         usuario_id INT NOT NULL,
         remetente_id INT NULL,
+        postagem_id INT NULL,
         tipo ENUM('postagem', 'curtida', 'comentario', 'sistema') NOT NULL,
         mensagem VARCHAR(255) NOT NULL,
         lida BOOLEAN DEFAULT FALSE,
         criada_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE,
         FOREIGN KEY (remetente_id) REFERENCES usuarios(id) ON DELETE SET NULL,
+        FOREIGN KEY (postagem_id) REFERENCES postagens(id) ON DELETE CASCADE,
         INDEX idx_usuario_lida (usuario_id, lida),
         INDEX idx_criada_em (criada_em)
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
     `)
+    
+    // Adiciona a coluna postagem_id se a tabela já existe (migração)
+    try {
+      await pool.execute(`
+        ALTER TABLE notificacoes 
+        ADD COLUMN IF NOT EXISTS postagem_id INT NULL
+      `)
+      await pool.execute(`
+        ALTER TABLE notificacoes 
+        ADD CONSTRAINT fk_notificacoes_postagem 
+        FOREIGN KEY (postagem_id) REFERENCES postagens(id) ON DELETE CASCADE
+      `)
+    } catch (err) {
+      // Ignora erro se coluna/constraint já existir
+      if (!err.message.includes('Duplicate')) {
+        console.log('⚠️  Migração de notificacoes já aplicada ou não necessária')
+      }
+    }
 
     console.log('✅ Tabelas criadas com sucesso!')
   } catch (error) {

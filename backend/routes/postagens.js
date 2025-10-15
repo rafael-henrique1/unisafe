@@ -583,6 +583,87 @@ router.get('/:id/comentarios', async (req, res) => {
 })
 
 /**
+ * DELETE /api/postagens/:id/comentarios/:comentarioId
+ * Exclui um comentário (soft delete)
+ */
+router.delete('/:id/comentarios/:comentarioId', verificarAuth, async (req, res) => {
+  try {
+    const { id, comentarioId } = req.params
+    const usuarioId = req.usuario.id
+
+    console.log(`[EXCLUIR COMENTARIO] Usuário ID ${usuarioId} tentando excluir comentário ID ${comentarioId}`)
+
+    // Verifica se o comentário existe e se pertence ao usuário
+    const comentarios = await db.query(
+      'SELECT id, usuario_id, postagem_id FROM comentarios WHERE id = ? AND ativo = 1',
+      [comentarioId]
+    )
+
+    if (comentarios.length === 0) {
+      console.log(`[EXCLUIR COMENTARIO] Comentário ID ${comentarioId} não encontrado`)
+      return res.status(404).json({
+        success: false,
+        message: 'Comentário não encontrado'
+      })
+    }
+
+    const comentario = comentarios[0]
+
+    // Verifica se o usuário é o autor do comentário
+    if (comentario.usuario_id !== usuarioId) {
+      console.log(`[EXCLUIR COMENTARIO] Usuário ${usuarioId} não é o autor do comentário ${comentarioId}`)
+      return res.status(403).json({
+        success: false,
+        message: 'Você não tem permissão para excluir este comentário'
+      })
+    }
+
+    // Soft delete: marca como inativo
+    await db.query(
+      'UPDATE comentarios SET ativo = 0 WHERE id = ?',
+      [comentarioId]
+    )
+
+    console.log(`✅ [EXCLUIR COMENTARIO] Comentário ${comentarioId} excluído com sucesso`)
+
+    // Busca total de comentários DEPOIS da exclusão
+    const totalResult = await db.query(
+      'SELECT COUNT(*) as total FROM comentarios WHERE postagem_id = ? AND ativo = 1',
+      [id]
+    )
+    const totalComentarios = totalResult[0].total
+
+    console.log(`[EXCLUIR COMENTARIO] Total de comentários agora: ${totalComentarios}`)
+
+    // Emite evento Socket.IO para atualizar contador em tempo real
+    const ioInstance = getIO()
+    if (ioInstance) {
+      ioInstance.emit('comentario_excluido', {
+        postagemId: parseInt(id),
+        comentarioId: parseInt(comentarioId),
+        usuarioId,
+        totalComentarios
+      })
+      console.log(`[EXCLUIR COMENTARIO] Evento Socket.IO emitido`)
+    }
+
+    res.json({
+      success: true,
+      message: 'Comentário excluído com sucesso',
+      totalComentarios
+    })
+
+  } catch (error) {
+    console.error('❌ [ERRO EXCLUIR COMENTARIO]', error.message)
+    console.error('Stack:', error.stack)
+    res.status(500).json({
+      success: false,
+      message: 'Erro ao excluir comentário'
+    })
+  }
+})
+
+/**
  * Função auxiliar para formatar datas
  */
 function formatarData(data) {

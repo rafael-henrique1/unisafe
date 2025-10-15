@@ -165,6 +165,35 @@ export default function Feed() {
     })
 
     // ========================================
+    // EVENTO: Comentário Excluído (Atualiza contador e remove da lista)
+    // ========================================
+    socket.on('comentario_excluido', (data) => {
+      console.log('[SOCKET] 🗑️ Comentário excluído:', data)
+      
+      // Decrementa contador de comentários
+      setPostagens(prevPostagens => 
+        prevPostagens.map(p => {
+          if (p.id == data.postagemId) {
+            console.log('[COMENTARIO] Decrementando contador:', p.comentarios, '→', p.comentarios - 1)
+            return { ...p, comentarios: Math.max(0, p.comentarios - 1) }
+          }
+          return p
+        })
+      )
+
+      // Remove da lista SE estiver expandida
+      setComentarios(prevComentarios => {
+        const comentariosDaPostagem = prevComentarios[data.postagemId]
+        if (!comentariosDaPostagem) return prevComentarios
+        
+        return {
+          ...prevComentarios,
+          [data.postagemId]: comentariosDaPostagem.filter(c => c.id !== data.comentarioId)
+        }
+      })
+    })
+
+    // ========================================
     // EVENTO: Notificação Pessoal (APENAS para você)
     // ========================================
     socket.on('notificacao', (notificacao) => {
@@ -407,6 +436,61 @@ export default function Feed() {
       console.error('[COMENTARIO] Erro ao adicionar comentário:', error)
     } finally {
       setEnviandoComentario(prev => ({ ...prev, [postagemId]: false }))
+    }
+  }
+
+  /**
+   * Exclui um comentário
+   * @param {number} postagemId - ID da postagem
+   * @param {number} comentarioId - ID do comentário
+   */
+  const excluirComentario = async (postagemId, comentarioId) => {
+    if (!confirm('Tem certeza que deseja excluir este comentário?')) {
+      return
+    }
+
+    try {
+      console.log('[COMENTARIO] Excluindo comentário:', comentarioId)
+
+      const token = localStorage.getItem('unisafe_token')
+      if (!token) {
+        alert('Você precisa estar logado')
+        return
+      }
+
+      const response = await fetch(`${endpoints.comentarios(postagemId)}/${comentarioId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        console.log('[COMENTARIO] Resposta do backend:', data)
+        
+        // Remove localmente da lista
+        setComentarios(prev => ({
+          ...prev,
+          [postagemId]: (prev[postagemId] || []).filter(c => c.id !== comentarioId)
+        }))
+
+        // Atualiza contador localmente
+        setPostagens(prev => prev.map(p => 
+          p.id === postagemId 
+            ? { ...p, comentarios: Math.max(0, (p.comentarios || 0) - 1) }
+            : p
+        ))
+
+        console.log('[COMENTARIO] Comentário excluído com sucesso')
+      } else {
+        const error = await response.json()
+        alert(error.message || 'Erro ao excluir comentário')
+        console.error('[COMENTARIO] Erro ao excluir - Status:', response.status)
+      }
+    } catch (error) {
+      console.error('[COMENTARIO] Erro ao excluir comentário:', error)
+      alert('Erro ao excluir comentário')
     }
   }
 
@@ -949,13 +1033,27 @@ export default function Feed() {
                                 {comentario.usuario ? comentario.usuario.charAt(0).toUpperCase() : 'U'}
                               </div>
                               <div className="flex-1">
-                                <div className="flex items-center space-x-2 mb-1">
-                                  <span className="font-medium text-gray-900 text-sm">
-                                    {comentario.usuario || 'Usuário Anônimo'}
-                                  </span>
-                                  <span className="text-xs text-gray-500">
-                                    {comentario.data}
-                                  </span>
+                                <div className="flex items-center justify-between mb-1">
+                                  <div className="flex items-center space-x-2">
+                                    <span className="font-medium text-gray-900 text-sm">
+                                      {comentario.usuario || 'Usuário Anônimo'}
+                                    </span>
+                                    <span className="text-xs text-gray-500">
+                                      {comentario.data}
+                                    </span>
+                                  </div>
+                                  {/* Botão de excluir (apenas para o autor do comentário) */}
+                                  {comentario.usuario === nomeUsuario && (
+                                    <button
+                                      onClick={() => excluirComentario(postagem.id, comentario.id)}
+                                      className="text-red-500 hover:text-red-700 transition"
+                                      title="Excluir comentário"
+                                    >
+                                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                      </svg>
+                                    </button>
+                                  )}
                                 </div>
                                 <p className="text-gray-800 text-sm leading-relaxed">
                                   {comentario.conteudo}

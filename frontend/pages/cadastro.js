@@ -25,14 +25,45 @@ export default function Cadastro() {
   const router = useRouter()
 
   /**
+   * Formata o telefone no padrão (11) 99999-9999
+   * @param {string} value - Valor do telefone
+   * @returns {string} - Telefone formatado
+   */
+  const formatarTelefone = (value) => {
+    // Remove tudo que não é dígito
+    const apenasNumeros = value.replace(/\D/g, '')
+    
+    // Aplica a máscara conforme o usuário digita
+    if (apenasNumeros.length <= 2) {
+      return apenasNumeros
+    } else if (apenasNumeros.length <= 6) {
+      return `(${apenasNumeros.slice(0, 2)}) ${apenasNumeros.slice(2)}`
+    } else if (apenasNumeros.length <= 10) {
+      return `(${apenasNumeros.slice(0, 2)}) ${apenasNumeros.slice(2, 6)}-${apenasNumeros.slice(6)}`
+    } else {
+      return `(${apenasNumeros.slice(0, 2)}) ${apenasNumeros.slice(2, 7)}-${apenasNumeros.slice(7, 11)}`
+    }
+  }
+
+  /**
    * Manipula mudanças nos campos do formulário
    * @param {Event} e - Evento de mudança do input
    */
   const handleChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value
-    })
+    const { name, value } = e.target
+    
+    // Aplica máscara de telefone
+    if (name === 'telefone') {
+      setFormData({
+        ...formData,
+        [name]: formatarTelefone(value)
+      })
+    } else {
+      setFormData({
+        ...formData,
+        [name]: value
+      })
+    }
   }
 
   /**
@@ -232,6 +263,7 @@ export default function Cadastro() {
                   onChange={handleChange}
                   className="input-field mt-1"
                   placeholder="(11) 99999-9999"
+                  maxLength="15"
                 />
                 <p className="mt-1 text-xs text-gray-500">
                   Para contato em situações de emergência (opcional)

@@ -5,10 +5,12 @@
  * Inclui funcionalidades para atualizar nome, bio, telefone, avatar e senha.
  */
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/router'
 import Head from 'next/head'
 import { endpoints } from '../config/api'
+import { io } from 'socket.io-client'
+import API_URL from '../config/api'
 
 export default function Perfil() {
   const router = useRouter()
@@ -16,6 +18,9 @@ export default function Perfil() {
   // Estados dos dados do usuário
   const [usuario, setUsuario] = useState(null)
   const [loading, setLoading] = useState(true)
+  
+  // Ref para Socket.IO
+  const socketRef = useRef(null)
   
   // Estados do formulário
   const [formData, setFormData] = useState({
@@ -47,6 +52,63 @@ export default function Perfil() {
    */
   useEffect(() => {
     carregarPerfil()
+  }, [])
+
+  /**
+   * Socket.IO - Atualiza contadores em tempo real
+   */
+  useEffect(() => {
+    const token = localStorage.getItem('unisafe_token')
+    const userData = localStorage.getItem('unisafe_user')
+    
+    if (!token || !userData) return
+
+    const user = JSON.parse(userData)
+    const socket = io(API_URL, {
+      auth: { token },
+      reconnection: true
+    })
+
+    socketRef.current = socket
+
+    // Atualiza contador quando uma postagem é excluída
+    socket.on('postagem_excluida', (data) => {
+      // Se foi o próprio usuário que excluiu, decrementa contador
+      if (data.usuarioId === user.id) {
+        setUsuario(prev => {
+          if (!prev || !prev.estatisticas) return prev
+          return {
+            ...prev,
+            estatisticas: {
+              ...prev.estatisticas,
+              total_postagens: Math.max(0, (prev.estatisticas.total_postagens || 0) - 1)
+            }
+          }
+        })
+      }
+    })
+
+    // Atualiza contador quando uma nova postagem é criada
+    socket.on('nova_postagem', (postagem) => {
+      // Se foi o próprio usuário que criou, incrementa contador
+      if (postagem.usuario_id === user.id) {
+        setUsuario(prev => {
+          if (!prev || !prev.estatisticas) return prev
+          return {
+            ...prev,
+            estatisticas: {
+              ...prev.estatisticas,
+              total_postagens: (prev.estatisticas.total_postagens || 0) + 1
+            }
+          }
+        })
+      }
+    })
+
+    return () => {
+      socket.disconnect()
+      socketRef.current = null
+    }
   }, [])
 
   /**

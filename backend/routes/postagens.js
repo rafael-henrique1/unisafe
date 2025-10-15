@@ -665,6 +665,75 @@ router.delete('/:id/comentarios/:comentarioId', verificarAuth, async (req, res) 
 })
 
 /**
+ * DELETE /api/postagens/:id
+ * Exclui uma postagem (soft delete)
+ */
+router.delete('/:id', verificarAuth, async (req, res) => {
+  try {
+    const { id } = req.params
+    const usuarioId = req.usuario.id
+
+    console.log(`[EXCLUIR POSTAGEM] Usuário ID ${usuarioId} tentando excluir postagem ID ${id}`)
+
+    // Verifica se a postagem existe e se pertence ao usuário
+    const postagens = await db.query(
+      'SELECT id, usuario_id FROM postagens WHERE id = ? AND ativo = 1',
+      [id]
+    )
+
+    if (postagens.length === 0) {
+      console.log(`[EXCLUIR POSTAGEM] Postagem ID ${id} não encontrada`)
+      return res.status(404).json({
+        success: false,
+        message: 'Postagem não encontrada'
+      })
+    }
+
+    const postagem = postagens[0]
+
+    // Verifica se o usuário é o autor da postagem
+    if (postagem.usuario_id !== usuarioId) {
+      console.log(`[EXCLUIR POSTAGEM] Usuário ${usuarioId} não é o autor da postagem ${id}`)
+      return res.status(403).json({
+        success: false,
+        message: 'Você não tem permissão para excluir esta postagem'
+      })
+    }
+
+    // Soft delete: marca como inativo
+    await db.query(
+      'UPDATE postagens SET ativo = 0 WHERE id = ?',
+      [id]
+    )
+
+    console.log(`✅ [EXCLUIR POSTAGEM] Postagem ${id} excluída com sucesso`)
+
+    // Emite evento Socket.IO para remover da lista em tempo real
+    const ioInstance = getIO()
+    if (ioInstance) {
+      ioInstance.emit('postagem_excluida', {
+        postagemId: parseInt(id),
+        usuarioId
+      })
+      console.log(`[EXCLUIR POSTAGEM] Evento Socket.IO emitido`)
+    }
+
+    res.json({
+      success: true,
+      message: 'Postagem excluída com sucesso'
+    })
+
+  } catch (error) {
+    console.error('❌ [ERRO EXCLUIR POSTAGEM]', error.message)
+    console.error('Stack:', error.stack)
+    res.status(500).json({
+      success: false,
+      message: 'Erro ao excluir postagem'
+    })
+  }
+})
+
+/**
  * Função auxiliar para formatar datas
  */
 function formatarData(data) {

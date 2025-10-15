@@ -198,6 +198,18 @@ export default function Feed() {
     })
 
     // ========================================
+    // EVENTO: Postagem Excluída (Remove da lista)
+    // ========================================
+    socket.on('postagem_excluida', (data) => {
+      console.log('[SOCKET] 🗑️ Postagem excluída:', data)
+      
+      // Remove da lista de postagens
+      setPostagens(prevPostagens => 
+        prevPostagens.filter(p => p.id !== data.postagemId)
+      )
+    })
+
+    // ========================================
     // EVENTO: Notificação Pessoal (APENAS para você)
     // ========================================
     socket.on('notificacao', (notificacao) => {
@@ -347,6 +359,47 @@ export default function Feed() {
       // Atualiza localmente
       setNotificacoes(prev => prev.map(n => ({ ...n, lida: true })))
       setNotificacoesNaoLidas(0)
+    }
+  }
+
+  /**
+   * Exclui uma postagem
+   * @param {number} postagemId - ID da postagem
+   */
+  const excluirPostagem = async (postagemId) => {
+    if (!confirm('Tem certeza que deseja excluir esta postagem? Esta ação não pode ser desfeita.')) {
+      return
+    }
+
+    try {
+      console.log('[POSTAGEM] Excluindo postagem:', postagemId)
+
+      const token = localStorage.getItem('unisafe_token')
+      if (!token) {
+        alert('Você precisa estar logado')
+        return
+      }
+
+      const response = await fetch(`${endpoints.postagens}/${postagemId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
+
+      if (response.ok) {
+        console.log('[POSTAGEM] Postagem excluída com sucesso')
+        
+        // Remove localmente da lista
+        setPostagens(prev => prev.filter(p => p.id !== postagemId))
+      } else {
+        const error = await response.json()
+        alert(error.message || 'Erro ao excluir postagem')
+        console.error('[POSTAGEM] Erro ao excluir - Status:', response.status)
+      }
+    } catch (error) {
+      console.error('[POSTAGEM] Erro ao excluir postagem:', error)
+      alert('Erro ao excluir postagem')
     }
   }
 
@@ -994,9 +1047,23 @@ export default function Feed() {
                         </p>
                       </div>
                     </div>
-                    <span className={`px-3 py-1 rounded-full text-xs font-medium uppercase ${getTipoCor(postagem.tipo)}`}>
-                      {postagem.tipo || 'aviso'}
-                    </span>
+                    <div className="flex items-center space-x-2">
+                      <span className={`px-3 py-1 rounded-full text-xs font-medium uppercase ${getTipoCor(postagem.tipo)}`}>
+                        {postagem.tipo || 'aviso'}
+                      </span>
+                      {/* Botão de excluir (apenas para o autor da postagem) */}
+                      {postagem.usuario === nomeUsuario && (
+                        <button
+                          onClick={() => excluirPostagem(postagem.id)}
+                          className="text-red-500 hover:text-red-700 transition p-2 rounded-full hover:bg-red-50"
+                          title="Excluir postagem"
+                        >
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                        </button>
+                      )}
+                    </div>
                   </div>
 
                   {/* Título da postagem (se houver) */}

@@ -152,12 +152,13 @@ export default function Feed() {
           return prevComentarios
         }
         
-        console.log('[COMENTARIO] Adicionando à lista expandida')
+        console.log('[COMENTARIO] Adicionando à lista expandida com ID:', comentario.id)
         return {
           ...prevComentarios,
           [comentario.postagemId]: [
             ...comentariosDaPostagem,
             {
+              id: comentario.id, // ID do comentário
               usuario: comentario.nomeUsuario,
               conteudo: comentario.conteudo,
               data: 'Agora mesmo'
@@ -173,12 +174,12 @@ export default function Feed() {
     socket.on('comentario_excluido', (data) => {
       console.log('[SOCKET] 🗑️ Comentário excluído:', data)
       
-      // Decrementa contador de comentários
+      // Atualiza contador com valor EXATO do backend
       setPostagens(prevPostagens => 
         prevPostagens.map(p => {
           if (p.id == data.postagemId) {
-            console.log('[COMENTARIO] Decrementando contador:', p.comentarios, '→', p.comentarios - 1)
-            return { ...p, comentarios: Math.max(0, p.comentarios - 1) }
+            console.log('[COMENTARIO] Atualizando contador para:', data.totalComentarios)
+            return { ...p, comentarios: data.totalComentarios }
           }
           return p
         })
@@ -506,14 +507,14 @@ export default function Feed() {
           [postagemId]: (prev[postagemId] || []).filter(c => c.id !== comentarioId)
         }))
 
-        // Atualiza contador localmente
+        // Atualiza contador com o valor EXATO do backend
         setPostagens(prev => prev.map(p => 
           p.id === postagemId 
-            ? { ...p, comentarios: Math.max(0, (p.comentarios || 0) - 1) }
+            ? { ...p, comentarios: data.totalComentarios }
             : p
         ))
 
-        console.log('[COMENTARIO] Comentário excluído com sucesso')
+        console.log('[COMENTARIO] Comentário excluído, contador atualizado para:', data.totalComentarios)
       } else {
         const error = await response.json()
         alert(error.message || 'Erro ao excluir comentário')

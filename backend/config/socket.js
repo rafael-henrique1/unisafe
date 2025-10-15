@@ -287,10 +287,11 @@ async function emitirNovaCurtida(io, curtida) {
  */
 async function emitirNovoComentario(io, comentario) {
   try {
-    const { postagemId, usuarioId, autorPostagemId, nomeUsuario, conteudo } = comentario
+    const { comentarioId, postagemId, usuarioId, autorPostagemId, nomeUsuario, conteudo } = comentario
     
     console.log(`\n[SOCKET] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`)
     console.log(`[SOCKET] 💬 NOVO COMENTÁRIO`)
+    console.log(`[SOCKET] Comentário ID: ${comentarioId}`)
     console.log(`[SOCKET] Postagem ID: ${postagemId}`)
     console.log(`[SOCKET] Quem comentou: ${nomeUsuario} (ID: ${usuarioId})`)
     console.log(`[SOCKET] Autor da postagem ID: ${autorPostagemId}`)
@@ -328,6 +329,7 @@ async function emitirNovoComentario(io, comentario) {
     
     // 3. Broadcast para TODOS (atualiza lista de comentários no feed)
     io.emit('novo_comentario', {
+      id: comentarioId, // ID do comentário
       postagemId,
       usuarioId,
       nomeUsuario,

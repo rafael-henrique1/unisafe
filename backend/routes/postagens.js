@@ -474,6 +474,7 @@ router.post('/:id/comentarios', verificarAuth, [
     
     // Emite evento Socket.IO de novo comentário
     emitirNovoComentario(ioInstance, {
+      comentarioId: novoComentario[0].id, // ID do comentário criado
       postagemId: id,
       usuarioId,
       autorPostagemId,

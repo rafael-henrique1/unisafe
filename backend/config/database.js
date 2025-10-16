@@ -140,19 +140,38 @@ async function createTables() {
     
     // Adiciona a coluna postagem_id se a tabela já existe (migração)
     try {
-      await pool.execute(`
-        ALTER TABLE notificacoes 
-        ADD COLUMN IF NOT EXISTS postagem_id INT NULL
+      // Verifica se a coluna postagem_id já existe
+      const [columns] = await pool.execute(`
+        SELECT COLUMN_NAME 
+        FROM INFORMATION_SCHEMA.COLUMNS 
+        WHERE TABLE_SCHEMA = DATABASE() 
+        AND TABLE_NAME = 'notificacoes' 
+        AND COLUMN_NAME = 'postagem_id'
       `)
-      await pool.execute(`
-        ALTER TABLE notificacoes 
-        ADD CONSTRAINT fk_notificacoes_postagem 
-        FOREIGN KEY (postagem_id) REFERENCES postagens(id) ON DELETE CASCADE
-      `)
+      
+      if (columns.length === 0) {
+        // Coluna não existe, adiciona
+        await pool.execute(`
+          ALTER TABLE notificacoes 
+          ADD COLUMN postagem_id INT NULL AFTER remetente_id
+        `)
+        
+        // Adiciona foreign key
+        await pool.execute(`
+          ALTER TABLE notificacoes 
+          ADD CONSTRAINT fk_notificacoes_postagem 
+          FOREIGN KEY (postagem_id) REFERENCES postagens(id) ON DELETE CASCADE
+        `)
+        console.log('✅ Coluna postagem_id adicionada à tabela notificacoes')
+      } else {
+        console.log('⚠️  Coluna postagem_id já existe na tabela notificacoes')
+      }
     } catch (err) {
-      // Ignora erro se coluna/constraint já existir
-      if (!err.message.includes('Duplicate')) {
-        console.log('⚠️  Migração de notificacoes já aplicada ou não necessária')
+      // Ignora erro se constraint já existir
+      if (err.code === 'ER_DUP_KEYNAME' || err.message.includes('Duplicate')) {
+        console.log('⚠️  Migração de notificacoes já aplicada')
+      } else {
+        console.error('❌ Erro na migração:', err.message)
       }
     }
 

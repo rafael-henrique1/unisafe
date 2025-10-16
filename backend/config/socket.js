@@ -108,6 +108,7 @@ function setupSocket(io) {
             n.tipo,
             n.mensagem,
             n.lida,
+            n.postagem_id,
             n.criada_em,
             u.nome as remetente_nome
           FROM notificacoes n
@@ -248,11 +249,11 @@ async function emitirNovaCurtida(io, curtida) {
     if (autorPostagemId && autorPostagemId !== usuarioId) {
       console.log(`[SOCKET] ✅ Autor é diferente! Enviando notificação...`)
       
-      // 1. Salva notificação no banco de dados (SEM postagem_id por enquanto)
+      // 1. Salva notificação no banco de dados COM postagem_id
       await db.query(`
-        INSERT INTO notificacoes (usuario_id, remetente_id, tipo, mensagem)
-        VALUES (?, ?, 'curtida', ?)
-      `, [autorPostagemId, usuarioId, `${nomeUsuario} curtiu sua postagem`])
+        INSERT INTO notificacoes (usuario_id, remetente_id, postagem_id, tipo, mensagem)
+        VALUES (?, ?, ?, 'curtida', ?)
+      `, [autorPostagemId, usuarioId, postagemId, `${nomeUsuario} curtiu sua postagem`])
       
       // 2. Envia notificação APENAS para o autor (sala privada)
       const salaAutor = `user_${autorPostagemId}`
@@ -301,11 +302,11 @@ async function emitirNovoComentario(io, comentario) {
     if (autorPostagemId && autorPostagemId !== usuarioId) {
       console.log(`[SOCKET] ✅ Autor é diferente! Enviando notificação...`)
       
-      // 1. Salva notificação no banco de dados (SEM postagem_id por enquanto)
+      // 1. Salva notificação no banco de dados COM postagem_id
       await db.query(`
-        INSERT INTO notificacoes (usuario_id, remetente_id, tipo, mensagem)
-        VALUES (?, ?, 'comentario', ?)
-      `, [autorPostagemId, usuarioId, `${nomeUsuario} comentou em sua postagem`])
+        INSERT INTO notificacoes (usuario_id, remetente_id, postagem_id, tipo, mensagem)
+        VALUES (?, ?, ?, 'comentario', ?)
+      `, [autorPostagemId, usuarioId, postagemId, `${nomeUsuario} comentou em sua postagem`])
       
       // 2. Envia notificação APENAS para o autor (sala privada)
       const salaAutor = `user_${autorPostagemId}`

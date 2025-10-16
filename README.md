@@ -43,8 +43,8 @@ UniSafe/
 │   └── package.json   # Dependências do frontend
 ├── backend/           # API Express.js
 │   ├── routes/        # Rotas da API
-│   ├── config/        # Configurações
-│   ├── database/      # Documentação do banco de dados
+│   ├── config/        # Configurações (database, socket, env)
+│   ├── database/      # Documentação do banco MySQL
 │   └── server.js      # Servidor principal
 └── README.md          # Documentação do projeto
 ```
@@ -149,16 +149,31 @@ O frontend estará rodando em `http://localhost:3000`
 - `GET /api/auth/perfil` - Obter dados do usuário
 
 ### Postagens
-- `GET /api/postagens` - Listar postagens
-- `POST /api/postagens` - Criar postagem
+- `GET /api/postagens` - Listar postagens (com paginação)
+- `POST /api/postagens` - Criar postagem (requer autenticação)
 - `GET /api/postagens/:id` - Obter postagem específica
-- `POST /api/postagens/:id/curtir` - Curtir postagem
+- `POST /api/postagens/:id/curtir` - Curtir/descurtir postagem
+- `DELETE /api/postagens/:id` - Excluir postagem (apenas autor)
+
+### Comentários
+- `GET /api/postagens/:id/comentarios` - Listar comentários
+- `POST /api/postagens/:id/comentarios` - Adicionar comentário
+- `DELETE /api/postagens/:id/comentarios/:comentarioId` - Excluir comentário
 
 ### Usuários
-- `GET /api/usuarios` - Listar usuários
+- `GET /api/usuarios` - Listar usuários (requer autenticação)
 - `GET /api/usuarios/:id` - Obter perfil público
-- `PUT /api/usuarios/:id` - Atualizar perfil
+- `PUT /api/usuarios/:id` - Atualizar perfil (apenas próprio usuário)
 - `DELETE /api/usuarios/:id` - Deletar conta
+
+### WebSocket (Socket.IO)
+- **Autenticação**: JWT no handshake
+- **Eventos**:
+  - `nova_postagem` - Broadcast de nova postagem para todos
+  - `notificacao` - Notificação privada (curtida, comentário)
+  - `novo_comentario` - Atualização de comentários em tempo real
+  - `postagem_excluida` - Notificação de exclusão
+  - `comentario_excluido` - Atualização de contador
 
 ## 🎨 Personalização
 
@@ -181,12 +196,13 @@ primary: {
 
 ## 📊 Dados de Exemplo
 
-O projeto inclui usuários e postagens de exemplo para facilitar testes:
+O projeto inclui usuários e postagens de exemplo para facilitar testes. Você pode criar novos usuários através da página de cadastro.
 
-- **Usuário Admin**: admin@unisafe.dev (senha: 123456)
-- **Usuários teste**: ana.costa@gmail.com (senha: 123456)
+**Para testes rápidos**, crie uma conta com:
+- Email: seu_email@exemplo.com
+- Senha: SuaSenhaSegura123 (mínimo 8 chars, 1 maiúscula, 1 minúscula, 1 número)
 
-**Nota**: Todos os usuários de exemplo usam a senha **123456** para facilitar os testes.
+**Nota**: O banco de dados MySQL está vazio inicialmente. Todas as tabelas são criadas automaticamente na primeira execução.
 
 ## 🔧 Configurações de Desenvolvimento
 
@@ -194,11 +210,12 @@ O projeto inclui usuários e postagens de exemplo para facilitar testes:
 ```bash
 NODE_ENV=development
 PORT=5000
-JWT_SECRET=sua_chave_secreta_jwt
+JWT_SECRET=sua_chave_secreta_jwt_forte
 DATABASE_URL=mysql://user:password@host:port/database
+FRONTEND_URL=http://localhost:3000
 ```
 
-**Nota**: O projeto utiliza MySQL 8 hospedado no Railway como banco de dados. Configure a variável `DATABASE_URL` no arquivo `.env` com suas credenciais. Consulte `backend/.env.example` para detalhes.
+**Nota**: O projeto utiliza MySQL 8 hospedado no Railway como banco de dados. Configure a variável `DATABASE_URL` no arquivo `.env` com suas credenciais. Consulte `backend/.env.example` para detalhes completos.
 
 ### Scripts Disponíveis
 
@@ -215,19 +232,23 @@ DATABASE_URL=mysql://user:password@host:port/database
 
 ### ✅ Implementado
 - [x] Estrutura básica do projeto
-- [x] Autenticação (login/cadastro)
-- [x] CRUD de postagens
-- [x] Sistema de curtidas
-- [x] Interface responsiva
+- [x] Autenticação (login/cadastro) com validação robusta
+- [x] CRUD de postagens completo
+- [x] Sistema de curtidas em tempo real
+- [x] Sistema de comentários completo
+- [x] Notificações em tempo real via Socket.IO
+- [x] Interface responsiva com Tailwind CSS
 - [x] Conexão com MySQL (Railway)
-- [x] API RESTful completa
+- [x] API RESTful completa com validações
+- [x] Gerenciamento de perfil de usuário
+- [x] Sistema de exclusão de postagens e comentários
 
 ### 🚧 Em Desenvolvimento
-- [ ] Sistema de comentários (UI)
-- [ ] Upload de imagens
-- [ ] Notificações push
-- [ ] Geolocalização
-- [ ] Filtros avançados
+- [ ] Upload de imagens para postagens
+- [ ] Geolocalização automática
+- [ ] Filtros avançados por tipo/data
+- [ ] Sistema de busca no feed
+- [ ] Modo escuro (dark mode)
 
 ### 📋 Futuras Melhorias
 - [ ] App móvel (React Native)
@@ -260,9 +281,27 @@ Este projeto está sob a licença MIT. Veja o arquivo [LICENSE](LICENSE) para ma
 1. Verifique se a variável `DATABASE_URL` está configurada corretamente no arquivo `backend/.env`
 2. Confirme que as credenciais do Railway estão corretas (host, port, user, password, database)
 3. Teste a conexão usando: `mysql -h HOST -P PORT -u USER -p`
-4. Verifique se o firewall permite conexões com Railway (porta padrão: 3306)
+4. Verifique se o firewall permite conexões com Railway
+5. Confirme que o serviço MySQL está ativo no painel do Railway
 
 **Causa**: Credenciais incorretas ou problemas de rede com o servidor Railway.
+
+### Variáveis de Ambiente Ausentes
+
+**Problema**: Servidor aborta inicialização com erro de variáveis não encontradas.
+
+**Solução**:
+1. Copie o arquivo `.env.example` para `.env` no backend
+2. Configure as variáveis obrigatórias: `DATABASE_URL` e `JWT_SECRET`
+3. Reinicie o servidor
+
+**Exemplo:**
+```bash
+cd backend
+cp .env.example .env
+# Edite o .env com suas credenciais
+npm start
+```
 
 ### Porta já em uso
 

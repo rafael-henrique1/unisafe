@@ -20,6 +20,7 @@ const helmet = require('helmet')
 const morgan = require('morgan')
 const env = require('./config/env')
 const db = require('./config/database')
+const logger = require('./config/logger') // ← Winston Logger
 
 // Importa as rotas da API
 const authRoutes = require('./routes/auth')
@@ -37,7 +38,7 @@ const PORT = env.PORT
 
 // Middlewares de segurança e utilidade
 app.use(helmet()) // Adiciona headers de segurança
-app.use(morgan('combined')) // Log das requisições
+app.use(morgan('combined', { stream: logger.stream })) // Log das requisições com Winston
 
 // CORS dinâmico com suporte a múltiplos domínios
 const allowedOrigins = env.FRONTEND_URL ? env.FRONTEND_URL.split(',') : ['http://localhost:3000'];
@@ -66,7 +67,7 @@ app.use(express.urlencoded({ extended: true })) // Parser URL-encoded
 
 // Middleware para log personalizado
 app.use((req, res, next) => {
-  console.log(`[${new Date().toISOString()}] ${req.method} ${req.path}`)
+  logger.info(`${req.method} ${req.path}`, { ip: req.ip, userAgent: req.get('user-agent') })
   next()
 })
 
@@ -115,7 +116,12 @@ app.use('*', (req, res) => {
 
 // Middleware de tratamento de erros gerais
 app.use((error, req, res, next) => {
-  console.error('[ERRO]', error)
+  logger.error('Erro não tratado', {
+    message: error.message,
+    stack: error.stack,
+    path: req.path,
+    method: req.method
+  })
   
   res.status(error.status || 500).json({
     error: error.message || 'Erro interno do servidor',
@@ -136,7 +142,7 @@ async function startServer() {
     
     // Inicia o servidor HTTP (Express + Socket.IO)
     server.listen(PORT, () => {
-      console.log(`
+      const message = `
 ╔════════════════════════════════════════╗
 ║           🚀 UniSafe API               ║
 ║                                        ║
@@ -147,21 +153,23 @@ async function startServer() {
 ║  Ambiente: ${process.env.NODE_ENV || 'development'}              ║
 ║  Hora: ${new Date().toLocaleString('pt-BR')}   ║
 ╚════════════════════════════════════════╝
-      `)
+      `
+      console.log(message)
+      logger.info('Servidor iniciado com sucesso', { port: PORT, environment: process.env.NODE_ENV || 'development' })
     })
 
     // Graceful shutdown
     process.on('SIGINT', async () => {
-      console.log('\n🔄 Desligando servidor...')
+      logger.info('Iniciando graceful shutdown...')
       io.close() // ← Fecha conexões Socket.IO
       await db.closeDatabase()
       server.close(() => {
-        console.log('✅ Servidor desligado com sucesso')
+        logger.info('Servidor desligado com sucesso')
         process.exit(0)
       })
     })
   } catch (error) {
-    console.error('❌ Erro ao iniciar servidor:', error.message)
+    logger.error('Erro fatal ao iniciar servidor', { message: error.message, stack: error.stack })
     process.exit(1)
   }
 }

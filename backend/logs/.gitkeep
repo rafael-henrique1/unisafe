@@ -1,0 +1,8 @@
+# Logs do UniSafe Backend
+
+Este diretório contém os arquivos de log do sistema:
+
+- `error.log` - Apenas erros críticos
+- `combined.log` - Todos os logs (info, warn, error, etc)
+
+Os arquivos são rotacionados automaticamente quando atingem 5MB, mantendo até 5 arquivos históricos.

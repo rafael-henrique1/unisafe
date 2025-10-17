@@ -14,33 +14,10 @@ const jwt = require('jsonwebtoken')
 const { body, validationResult } = require('express-validator')
 const db = require('../config/database')
 const { JWT_SECRET } = require('../config/env')
+const { verificarAuth } = require('../middlewares/auth')
+const logger = require('../config/logger')
 
 const router = express.Router()
-
-/**
- * Middleware para verificar autenticação
- */
-const verificarAuth = (req, res, next) => {
-  const token = req.headers.authorization?.replace('Bearer ', '')
-  
-  if (!token) {
-    return res.status(401).json({
-      success: false,
-      message: 'Token de acesso não fornecido'
-    })
-  }
-
-  try {
-    const decoded = jwt.verify(token, JWT_SECRET)
-    req.usuario = decoded
-    next()
-  } catch (error) {
-    return res.status(401).json({
-      success: false,
-      message: 'Token inválido'
-    })
-  }
-}
 
 /**
  * GET /api/usuarios

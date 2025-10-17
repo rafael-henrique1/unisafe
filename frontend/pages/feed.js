@@ -644,7 +644,14 @@ export default function Feed() {
       setLoading(true)
       setError('')
       
-      const response = await fetch(endpoints.postagens)
+      // Pega o token do localStorage
+      const token = localStorage.getItem('unisafe_token')
+      
+      const response = await fetch(endpoints.postagens, {
+        headers: {
+          ...(token && { 'Authorization': `Bearer ${token}` })
+        }
+      })
       
       if (response.ok) {
         const result = await response.json()

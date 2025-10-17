@@ -18,37 +18,14 @@ const { body, validationResult } = require('express-validator')
 const db = require('../config/database')
 const { JWT_SECRET } = require('../config/env')
 const { emitirNovaPostagem, emitirNovaCurtida, emitirNovoComentario } = require('../config/socket')
+const { verificarAuth, verificarAuthOpcional } = require('../middlewares/auth')
+const logger = require('../config/logger')
 
 const router = express.Router()
 
 // ✅ Função helper para obter io de forma dinâmica (evita circular dependency)
 const getIO = () => {
   return require('../server').io
-}
-
-/**
- * Middleware para verificar autenticação
- */
-const verificarAuth = (req, res, next) => {
-  const token = req.headers.authorization?.replace('Bearer ', '')
-  
-  if (!token) {
-    return res.status(401).json({
-      success: false,
-      message: 'Token de acesso não fornecido'
-    })
-  }
-
-  try {
-    const decoded = jwt.verify(token, JWT_SECRET)
-    req.usuario = decoded
-    next()
-  } catch (error) {
-    return res.status(401).json({
-      success: false,
-      message: 'Token inválido'
-    })
-  }
 }
 
 /**
@@ -77,9 +54,17 @@ router.get('/', async (req, res) => {
     // Monta a query SQL sem interpolação de variáveis
     const params = []
     
-    const limite_int = parseInt(limite)
-    const pagina_int = parseInt(pagina)
+    const limite_int = parseInt(limite) || 20
+    const pagina_int = parseInt(pagina) || 1
     const offset = (pagina_int - 1) * limite_int
+    
+    // Valida valores
+    if (limite_int < 1 || limite_int > 100) {
+      return res.status(400).json({
+        success: false,
+        message: 'Limite deve estar entre 1 e 100'
+      })
+    }
     
     let query = `
       SELECT 
@@ -101,6 +86,7 @@ router.get('/', async (req, res) => {
       params.push(tipo)
     }
     
+    // IMPORTANTE: MySQL precisa de LIMIT como número, não placeholder
     query += ` ORDER BY p.criado_em DESC LIMIT ${limite_int} OFFSET ${offset}`
 
     console.log(`[LISTAR POSTAGENS] Executando query - Limite: ${limite_int}, Offset: ${offset}, Params:`, params)
@@ -166,6 +152,15 @@ router.get('/', async (req, res) => {
     })
 
   } catch (error) {
+    logger.error('Erro ao listar postagens', {
+      message: error.message,
+      stack: error.stack,
+      query: { 
+        limite: req.query.limite || 20, 
+        pagina: req.query.pagina || 1, 
+        tipo: req.query.tipo 
+      }
+    })
     console.error('❌ [ERRO LISTAR POSTAGENS]', error.message)
     console.error('Stack:', error.stack)
     res.status(500).json({

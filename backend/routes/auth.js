@@ -14,6 +14,7 @@ const jwt = require('jsonwebtoken')
 const { body, validationResult } = require('express-validator')
 const db = require('../config/database')
 const { JWT_SECRET } = require('../config/env')
+const { loginLimiter, cadastroLimiter } = require('../middlewares/rateLimiter')
 
 const router = express.Router()
 
@@ -21,7 +22,7 @@ const router = express.Router()
  * POST /api/auth/cadastro
  * Registra um novo usuário da comunidade no sistema
  */
-router.post('/cadastro', [
+router.post('/cadastro', cadastroLimiter, [
   // Validações dos campos para usuários da comunidade
   body('nome').notEmpty().withMessage('Nome completo é obrigatório')
     .isLength({ min: 2 }).withMessage('Nome deve ter pelo menos 2 caracteres')
@@ -124,7 +125,7 @@ router.post('/cadastro', [
  * POST /api/auth/login
  * Autentica um usuário no sistema
  */
-router.post('/login', [
+router.post('/login', loginLimiter, [
   body('email').isEmail().withMessage('Email inválido'),
   body('senha').notEmpty().withMessage('Senha é obrigatória')
 ], async (req, res) => {

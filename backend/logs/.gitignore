@@ -1,0 +1,7 @@
+# Logs
+*.log
+error.log
+combined.log
+
+# Mantém o diretório mas ignora os arquivos de log
+!.gitkeep

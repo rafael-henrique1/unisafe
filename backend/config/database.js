@@ -175,6 +175,50 @@ async function createTables() {
       }
     }
 
+    // Migração: Adiciona coluna foto_perfil e torna senha NULL (Google OAuth)
+    try {
+      // Verifica se a coluna foto_perfil já existe
+      const [fotoColumns] = await pool.execute(`
+        SELECT COLUMN_NAME 
+        FROM INFORMATION_SCHEMA.COLUMNS 
+        WHERE TABLE_SCHEMA = DATABASE() 
+        AND TABLE_NAME = 'usuarios' 
+        AND COLUMN_NAME = 'foto_perfil'
+      `)
+      
+      if (fotoColumns.length === 0) {
+        // Adiciona coluna foto_perfil
+        await pool.execute(`
+          ALTER TABLE usuarios 
+          ADD COLUMN foto_perfil TEXT NULL AFTER bio
+        `)
+        console.log('✅ Coluna foto_perfil adicionada à tabela usuarios')
+      }
+
+      // Verifica se a coluna senha permite NULL
+      const [senhaInfo] = await pool.execute(`
+        SELECT IS_NULLABLE 
+        FROM INFORMATION_SCHEMA.COLUMNS 
+        WHERE TABLE_SCHEMA = DATABASE() 
+        AND TABLE_NAME = 'usuarios' 
+        AND COLUMN_NAME = 'senha'
+      `)
+      
+      if (senhaInfo.length > 0 && senhaInfo[0].IS_NULLABLE === 'NO') {
+        // Modifica coluna senha para permitir NULL (usuários Google OAuth)
+        await pool.execute(`
+          ALTER TABLE usuarios 
+          MODIFY COLUMN senha VARCHAR(255) NULL
+        `)
+        console.log('✅ Coluna senha modificada para permitir NULL (Google OAuth)')
+      }
+      
+    } catch (err) {
+      if (!err.message.includes('Duplicate')) {
+        console.error('❌ Erro na migração OAuth:', err.message)
+      }
+    }
+
     console.log('✅ Tabelas criadas com sucesso!')
   } catch (error) {
     console.error('❌ Erro ao criar tabelas:', error.message)
@@ -232,6 +276,14 @@ async function query(sql, params = []) {
 }
 
 // Fecha o pool de conexões
+// Retorna o pool de conexões (para uso direto em rotas OAuth)
+function getPool() {
+  if (!pool) {
+    throw new Error('Pool de conexões não inicializado. Execute initializeDatabase() primeiro.');
+  }
+  return pool;
+}
+
 async function closeDatabase() {
   if (pool) {
     await pool.end()
@@ -242,5 +294,7 @@ async function closeDatabase() {
 module.exports = {
   initializeDatabase,
   query,
+  query,
+  getPool,
   closeDatabase
 }

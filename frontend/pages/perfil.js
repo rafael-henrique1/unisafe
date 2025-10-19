@@ -48,6 +48,29 @@ export default function Perfil() {
   const [mostrarNovaSenha, setMostrarNovaSenha] = useState(false)
 
   /**
+   * Formata o telefone no padrão (11) 99999-9999
+   * @param {string} value - Valor do telefone
+   * @returns {string} - Telefone formatado
+   */
+  const formatarTelefone = (value) => {
+    // Remove tudo que não é dígito
+    const apenasNumeros = value.replace(/\D/g, '')
+    
+    // Aplica a máscara conforme o usuário digita
+    if (apenasNumeros.length === 0) {
+      return ''
+    } else if (apenasNumeros.length <= 2) {
+      return `(${apenasNumeros}`
+    } else if (apenasNumeros.length <= 6) {
+      return `(${apenasNumeros.slice(0, 2)}) ${apenasNumeros.slice(2)}`
+    } else if (apenasNumeros.length <= 10) {
+      return `(${apenasNumeros.slice(0, 2)}) ${apenasNumeros.slice(2, 6)}-${apenasNumeros.slice(6)}`
+    } else {
+      return `(${apenasNumeros.slice(0, 2)}) ${apenasNumeros.slice(2, 7)}-${apenasNumeros.slice(7, 11)}`
+    }
+  }
+
+  /**
    * Carrega os dados do usuário ao montar o componente
    */
   useEffect(() => {
@@ -140,7 +163,7 @@ export default function Perfil() {
           nome: data.data.nome || '',
           bio: data.data.bio || '',
           avatar_url: data.data.avatar_url || '',
-          telefone: data.data.telefone || ''
+          telefone: formatarTelefone(data.data.telefone || '')
         })
       } else if (response.status === 401) {
         // Token inválido, redireciona para login
@@ -193,6 +216,12 @@ export default function Perfil() {
           bio: data.data.bio,
           avatar_url: data.data.avatar_url,
           telefone: data.data.telefone
+        }))
+        
+        // Atualiza o formData com o telefone formatado
+        setFormData(prev => ({
+          ...prev,
+          telefone: formatarTelefone(data.data.telefone || '')
         }))
         
         // Reset avatar error para tentar carregar nova imagem
@@ -437,10 +466,12 @@ export default function Perfil() {
                   <input
                     type="tel"
                     value={formData.telefone}
-                    onChange={(e) => setFormData(prev => ({ ...prev, telefone: e.target.value }))}
+                    onChange={(e) => setFormData(prev => ({ ...prev, telefone: formatarTelefone(e.target.value) }))}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="(XX) XXXXX-XXXX"
+                    placeholder="(11) 99999-9999"
+                    maxLength="15"
                   />
+                  <p className="text-xs text-gray-500 mt-1">Formato: (XX) XXXXX-XXXX</p>
                 </div>
 
                 <div>

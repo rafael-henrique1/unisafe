@@ -102,6 +102,7 @@ router.get('/:id', verificarAuth, async (req, res) => {
         email,
         bio,
         avatar_url,
+        foto_perfil,
         telefone,
         criado_em,
         (SELECT COUNT(*) FROM postagens WHERE usuario_id = usuarios.id AND ativo = 1) as total_postagens,
@@ -127,7 +128,8 @@ router.get('/:id', verificarAuth, async (req, res) => {
         nome: usuario.nome,
         email: usuario.email,
         bio: usuario.bio,
-        avatar_url: usuario.avatar_url,
+        avatar_url: usuario.foto_perfil || usuario.avatar_url, // Prioriza foto_perfil (Google)
+        foto_perfil: usuario.foto_perfil,
         telefone: usuario.telefone,
         membro_desde: usuario.criado_em,
         estatisticas: {

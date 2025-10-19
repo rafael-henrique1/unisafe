@@ -21,9 +21,11 @@ const morgan = require('morgan')
 const env = require('./config/env')
 const db = require('./config/database')
 const logger = require('./config/logger') // ← Winston Logger
+const passport = require('./config/passport') // ← Passport para Google OAuth
 
 // Importa as rotas da API
 const authRoutes = require('./routes/auth')
+const authGoogleRoutes = require('./routes/authGoogle') // ← Rotas Google OAuth
 const postagensRoutes = require('./routes/postagens')
 const usuariosRoutes = require('./routes/usuarios')
 
@@ -65,6 +67,9 @@ const io = new Server(server, {
 app.use(express.json({ limit: '10mb' })) // Parser JSON para requisições
 app.use(express.urlencoded({ extended: true })) // Parser URL-encoded
 
+// Inicializa Passport.js para autenticação OAuth
+app.use(passport.initialize())
+
 // Middleware para log personalizado
 app.use((req, res, next) => {
   logger.info(`${req.method} ${req.path}`, { ip: req.ip, userAgent: req.get('user-agent') })
@@ -95,7 +100,8 @@ app.get('/health', (req, res) => {
 })
 
 // Configuração das rotas da API
-app.use('/api/auth', authRoutes) // Rotas de autenticação
+app.use('/api/auth', authRoutes) // Rotas de autenticação tradicional
+app.use('/api/auth', authGoogleRoutes) // Rotas de autenticação Google OAuth
 app.use('/api/postagens', postagensRoutes) // Rotas de postagens
 app.use('/api/usuarios', usuariosRoutes) // Rotas de usuários
 

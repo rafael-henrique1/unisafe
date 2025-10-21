@@ -257,12 +257,28 @@ export default function Feed() {
     })
 
     // ========================================
-    // CLEANUP: Desconecta ao desmontar
+    // CLEANUP: Remove listeners e desconecta ao desmontar
     // ========================================
     return () => {
-      console.log('[SOCKET] 🔌 Desconectando...')
+      console.log('[SOCKET] 🧹 Limpando listeners e desconectando...')
+      
+      // Remove TODOS os event listeners para evitar memory leaks
+      socket.off('connected')
+      socket.off('nova_postagem')
+      socket.off('novo_comentario')
+      socket.off('comentario_excluido')
+      socket.off('postagem_excluida')
+      socket.off('notificacao')
+      socket.off('lista_notificacoes')
+      socket.off('total_nao_lidas')
+      socket.off('erro')
+      socket.off('reconnect')
+      
+      // Desconecta o socket
       socket.disconnect()
       socketRef.current = null
+      
+      console.log('[SOCKET] ✅ Cleanup concluído!')
     }
   }, []) // ✅ Sem dependências - executa apenas 1 vez
 

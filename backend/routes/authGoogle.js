@@ -7,6 +7,7 @@
 
 const express = require('express');
 const passport = require('../config/passport');
+const { FRONTEND_URL } = require('../config/env');
 
 const router = express.Router();
 
@@ -32,7 +33,7 @@ router.get(
   '/google/callback',
   passport.authenticate('google', {
     session: false,
-    failureRedirect: 'http://localhost:3000/login?error=google_auth_failed'
+    failureRedirect: `${FRONTEND_URL}/login?error=google_auth_failed`
   }),
   (req, res) => {
     try {
@@ -42,10 +43,10 @@ router.get(
 
       // Redireciona para o frontend com token JWT na URL
       // O frontend captura o token e armazena no localStorage
-      res.redirect(`http://localhost:3000/login/success?token=${token}`);
+      res.redirect(`${FRONTEND_URL}/login/success?token=${token}`);
     } catch (error) {
       console.error('❌ Erro no callback Google:', error);
-      res.redirect('http://localhost:3000/login?error=callback_error');
+      res.redirect(`${FRONTEND_URL}/login?error=callback_error`);
     }
   }
 );

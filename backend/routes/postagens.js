@@ -31,6 +31,7 @@ const getIO = () => {
 /**
  * GET /api/postagens
  * Lista todas as postagens do feed (ordenadas por data)
+ * ✅ OTIMIZADO - Query única com JOINs (61 queries → 1 query)
  */
 router.get('/', async (req, res) => {
   try {
@@ -51,7 +52,6 @@ router.get('/', async (req, res) => {
       }
     }
 
-    // Monta a query SQL sem interpolação de variáveis
     const params = []
     
     const limite_int = parseInt(limite) || 20
@@ -66,6 +66,7 @@ router.get('/', async (req, res) => {
       })
     }
     
+    // 🚀 QUERY OTIMIZADA - 1 única query com JOINs
     let query = `
       SELECT 
         p.id,
@@ -74,11 +75,19 @@ router.get('/', async (req, res) => {
         p.categoria as tipo,
         p.localizacao,
         p.criado_em,
-        u.nome as usuario_nome
+        u.nome as usuario_nome,
+        COUNT(DISTINCT cur.id) as total_curtidas,
+        COUNT(DISTINCT com.id) as total_comentarios,
+        MAX(CASE WHEN cur.usuario_id = ? THEN 1 ELSE 0 END) as usuario_curtiu
       FROM postagens p
       LEFT JOIN usuarios u ON p.usuario_id = u.id
+      LEFT JOIN curtidas cur ON p.id = cur.postagem_id
+      LEFT JOIN comentarios com ON p.id = com.postagem_id AND com.ativo = 1
       WHERE p.ativo = 1
     `
+
+    // Adiciona ID do usuário logado como primeiro parâmetro
+    params.push(usuarioLogadoId || 0)
 
     // Filtra por categoria se especificado
     if (tipo) {
@@ -86,47 +95,18 @@ router.get('/', async (req, res) => {
       params.push(tipo)
     }
     
-    // IMPORTANTE: MySQL precisa de LIMIT como número, não placeholder
-    query += ` ORDER BY p.criado_em DESC LIMIT ${limite_int} OFFSET ${offset}`
+    query += ` 
+      GROUP BY p.id, p.titulo, p.conteudo, p.categoria, p.localizacao, p.criado_em, u.nome
+      ORDER BY p.criado_em DESC 
+      LIMIT ${limite_int} OFFSET ${offset}
+    `
 
-    console.log(`[LISTAR POSTAGENS] Executando query - Limite: ${limite_int}, Offset: ${offset}, Params:`, params)
+    console.log(`[LISTAR POSTAGENS] ✅ Executando query OTIMIZADA - Limite: ${limite_int}, Offset: ${offset}`)
     const postagens = await db.query(query, params)
-    console.log(`[LISTAR POSTAGENS] ${postagens.length} postagens encontradas`)
-
-    // Para cada postagem, busca curtidas e comentários
-    const postagensCompletas = await Promise.all(postagens.map(async (p) => {
-      // Conta curtidas
-      const curtidas = await db.query(
-        'SELECT COUNT(*) as total FROM curtidas WHERE postagem_id = ?',
-        [p.id]
-      )
-      
-      // Conta comentários
-      const comentarios = await db.query(
-        'SELECT COUNT(*) as total FROM comentarios WHERE postagem_id = ? AND ativo = 1',
-        [p.id]
-      )
-      
-      // Verifica se usuário curtiu (se autenticado)
-      let usuarioCurtiu = false
-      if (usuarioLogadoId) {
-        const curtida = await db.query(
-          'SELECT COUNT(*) as total FROM curtidas WHERE postagem_id = ? AND usuario_id = ?',
-          [p.id, usuarioLogadoId]
-        )
-        usuarioCurtiu = curtida[0].total > 0
-      }
-      
-      return {
-        ...p,
-        total_curtidas: curtidas[0].total,
-        total_comentarios: comentarios[0].total,
-        usuario_curtiu: usuarioCurtiu
-      }
-    }))
+    console.log(`[LISTAR POSTAGENS] ${postagens.length} postagens encontradas em 1 query única! 🚀`)
 
     // Formata as postagens para o frontend
-    const postagensFormatadas = postagensCompletas.map(postagem => ({
+    const postagensFormatadas = postagens.map(postagem => ({
       id: postagem.id,
       titulo: postagem.titulo,
       conteudo: postagem.conteudo,

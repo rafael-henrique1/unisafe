@@ -1063,9 +1063,20 @@ export default function Feed() {
                         {postagem.usuario ? postagem.usuario.charAt(0).toUpperCase() : 'U'}
                       </div>
                       <div>
-                        <p className="font-medium text-gray-900">
-                          {postagem.usuario || 'Usuário Anônimo'}
-                        </p>
+                        <div className="flex items-center space-x-2">
+                          <p className="font-medium text-gray-900">
+                            {postagem.usuario || 'Usuário Anônimo'}
+                          </p>
+                          {postagem.username && (
+                            <Link 
+                              href={`/usuario/@${postagem.username}`}
+                              className="text-sm text-blue-600 font-medium hover:text-blue-800 hover:underline cursor-pointer"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              @{postagem.username}
+                            </Link>
+                          )}
+                        </div>
                         <p className="text-sm text-gray-500">
                           {formatarData(postagem.data)}
                         </p>
@@ -1171,9 +1182,12 @@ export default function Feed() {
                                         {comentario.usuario || 'Usuário Anônimo'}
                                       </span>
                                       {comentario.username && (
-                                        <span className="text-xs text-blue-600 font-medium">
+                                        <Link 
+                                          href={`/usuario/@${comentario.username}`}
+                                          className="text-xs text-blue-600 font-medium hover:text-blue-800 hover:underline cursor-pointer"
+                                        >
                                           @{comentario.username}
-                                        </span>
+                                        </Link>
                                       )}
                                       <span className="text-xs text-gray-500">
                                         · {comentario.data}

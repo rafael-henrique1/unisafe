@@ -6,6 +6,7 @@ export const endpoints = {
   login: `${API_URL}/api/auth/login`,
   cadastro: `${API_URL}/api/auth/cadastro`,
   usuarios: `${API_URL}/api/usuarios`,
+  perfilPublico: (username) => `${API_URL}/api/usuarios/perfil/${username}`,
   postagens: `${API_URL}/api/postagens`,
   postar: `${API_URL}/api/postagens`,
   curtir: (id) => `${API_URL}/api/postagens/${id}/curtir`,

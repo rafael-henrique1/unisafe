@@ -76,6 +76,7 @@ router.get('/', async (req, res) => {
         p.localizacao,
         p.criado_em,
         u.nome as usuario_nome,
+        u.username as usuario_username,
         COUNT(DISTINCT cur.id) as total_curtidas,
         COUNT(DISTINCT com.id) as total_comentarios,
         MAX(CASE WHEN cur.usuario_id = ? THEN 1 ELSE 0 END) as usuario_curtiu
@@ -96,7 +97,7 @@ router.get('/', async (req, res) => {
     }
     
     query += ` 
-      GROUP BY p.id, p.titulo, p.conteudo, p.categoria, p.localizacao, p.criado_em, u.nome
+      GROUP BY p.id, p.titulo, p.conteudo, p.categoria, p.localizacao, p.criado_em, u.nome, u.username
       ORDER BY p.criado_em DESC 
       LIMIT ${limite_int} OFFSET ${offset}
     `
@@ -113,6 +114,7 @@ router.get('/', async (req, res) => {
       tipo: postagem.tipo,
       localizacao: postagem.localizacao,
       usuario: postagem.usuario_nome,
+      username: postagem.usuario_username,
       data: formatarData(postagem.criado_em),
       curtidas: parseInt(postagem.total_curtidas) || 0,
       comentarios: parseInt(postagem.total_comentarios) || 0,

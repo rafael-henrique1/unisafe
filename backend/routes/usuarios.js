@@ -178,6 +178,66 @@ router.get('/', verificarAuth, async (req, res) => {
 })
 
 /**
+ * GET /api/usuarios/perfil/:username
+ * Obtém perfil público de um usuário pelo username (não requer autenticação)
+ */
+router.get('/perfil/:username', async (req, res) => {
+  try {
+    const { username } = req.params
+    console.log(`[${new Date().toISOString()}] GET /api/usuarios/perfil/${username}`)
+
+    const usuarios = await db.query(`
+      SELECT 
+        id,
+        nome,
+        username,
+        bio,
+        foto_perfil,
+        avatar_url,
+        criado_em,
+        (SELECT COUNT(*) FROM postagens WHERE usuario_id = usuarios.id AND ativo = 1) as total_postagens,
+        (SELECT COUNT(*) FROM curtidas WHERE usuario_id = usuarios.id) as total_curtidas,
+        (SELECT COUNT(*) FROM comentarios WHERE usuario_id = usuarios.id AND ativo = 1) as total_comentarios
+      FROM usuarios 
+      WHERE LOWER(username) = LOWER(?) AND ativo = 1
+    `, [username])
+
+    if (usuarios.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Usuário não encontrado'
+      })
+    }
+
+    const usuario = usuarios[0]
+
+    res.json({
+      success: true,
+      data: {
+        id: usuario.id,
+        nome: usuario.nome,
+        username: usuario.username,
+        bio: usuario.bio,
+        avatar_url: usuario.foto_perfil || usuario.avatar_url,
+        membro_desde: usuario.criado_em,
+        estatisticas: {
+          total_postagens: parseInt(usuario.total_postagens || 0),
+          total_curtidas: parseInt(usuario.total_curtidas || 0),
+          total_comentarios: parseInt(usuario.total_comentarios || 0)
+        }
+      }
+    })
+
+  } catch (error) {
+    console.error('[ERRO OBTER PERFIL PÚBLICO]', error)
+    res.status(500).json({
+      success: false,
+      message: 'Erro ao carregar perfil do usuário'
+    })
+  }
+})
+
+/**
  * GET /api/usuarios/:id
  * Obtém informações do usuário (próprio perfil se autenticado)
  */

@@ -31,8 +31,10 @@ router.post('/cadastro', cadastroLimiter, [
     .normalizeEmail()
     .custom((value) => {
       const emailLower = value.toLowerCase()
-      if (!emailLower.endsWith('@gmail.com') && !emailLower.endsWith('@hotmail.com')) {
-        throw new Error('Apenas emails @gmail.com ou @hotmail.com são permitidos')
+      const dominiosPermitidos = ['@gmail.com', '@hotmail.com', '@outlook.com', '@eaportal.org']
+      const emailValido = dominiosPermitidos.some(dominio => emailLower.endsWith(dominio))
+      if (!emailValido) {
+        throw new Error('Apenas emails @gmail.com, @hotmail.com, @outlook.com ou @eaportal.org são permitidos')
       }
       return true
     }),
@@ -136,8 +138,10 @@ router.post('/login', loginLimiter, [
   body('email').isEmail().withMessage('Email inválido')
     .custom((value) => {
       const emailLower = value.toLowerCase()
-      if (!emailLower.endsWith('@gmail.com') && !emailLower.endsWith('@hotmail.com')) {
-        throw new Error('Apenas emails @gmail.com ou @hotmail.com são permitidos')
+      const dominiosPermitidos = ['@gmail.com', '@hotmail.com', '@outlook.com', '@eaportal.org']
+      const emailValido = dominiosPermitidos.some(dominio => emailLower.endsWith(dominio))
+      if (!emailValido) {
+        throw new Error('Apenas emails @gmail.com, @hotmail.com, @outlook.com ou @eaportal.org são permitidos')
       }
       return true
     }),

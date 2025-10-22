@@ -70,13 +70,14 @@ export default function Cadastro() {
   }
 
   /**
-   * Valida se o email é Gmail ou Hotmail
+   * Valida se o email possui domínio permitido
    * @param {string} email - Email a ser validado
    * @returns {boolean} - True se válido, false caso contrário
    */
   const validarDominioEmail = (email) => {
     const emailLower = email.toLowerCase()
-    return emailLower.endsWith('@gmail.com') || emailLower.endsWith('@hotmail.com')
+    const dominiosPermitidos = ['@gmail.com', '@hotmail.com', '@outlook.com', '@eaportal.org']
+    return dominiosPermitidos.some(dominio => emailLower.endsWith(dominio))
   }
 
   /**
@@ -159,9 +160,9 @@ export default function Cadastro() {
       return false
     }
 
-    // Validação de domínio de email (apenas Gmail ou Hotmail)
+    // Validação de domínio de email (apenas domínios permitidos)
     if (!validarDominioEmail(formData.email)) {
-      setError('Apenas emails @gmail.com ou @hotmail.com são permitidos')
+      setError('Apenas emails @gmail.com, @hotmail.com, @outlook.com ou @eaportal.org são permitidos')
       return false
     }
 
@@ -336,7 +337,7 @@ export default function Cadastro() {
                 )}
                 {!emailJaCadastrado && !verificandoEmail && (
                   <p className="mt-1 text-xs text-gray-500">
-                    Apenas emails @gmail.com ou @hotmail.com
+                    Aceitos: @gmail.com, @hotmail.com, @outlook.com, @eaportal.org
                   </p>
                 )}
               </div>

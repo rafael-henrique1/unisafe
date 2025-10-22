@@ -54,6 +54,7 @@ export default function Perfil() {
   const [mensagemUsername, setMensagemUsername] = useState('')
   const [verificandoUsername, setVerificandoUsername] = useState(false)
   const [usernameOriginal, setUsernameOriginal] = useState('') // Para comparar se mudou
+  const [editandoUsername, setEditandoUsername] = useState(false) // Modo de edição do username
 
   // Estados de amizade
   const [amigos, setAmigos] = useState([])
@@ -422,6 +423,83 @@ export default function Perfil() {
   }
 
   /**
+   * Cancela a edição do username
+   */
+  const cancelarEdicaoUsername = () => {
+    setFormData(prev => ({
+      ...prev,
+      username: usernameOriginal
+    }))
+    setEditandoUsername(false)
+    setUsernameJaEmUso(false)
+    setUsernameInvalido(false)
+    setMensagemUsername('')
+  }
+
+  /**
+   * Salva apenas o username
+   */
+  const salvarUsername = async () => {
+    if (!formData.username || formData.username.length < 3) {
+      setErro('Username deve ter pelo menos 3 caracteres')
+      return
+    }
+
+    if (usernameJaEmUso) {
+      setErro('Este nome de usuário já está em uso')
+      return
+    }
+
+    setMensagem('')
+    setErro('')
+    setSalvando(true)
+
+    try {
+      const token = localStorage.getItem('unisafe_token')
+      const userData = localStorage.getItem('unisafe_user')
+      const user = JSON.parse(userData)
+
+      const response = await fetch(`${endpoints.usuarios}/${user.id}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ username: formData.username })
+      })
+
+      const data = await response.json()
+
+      if (response.ok) {
+        setMensagem('Nome de usuário atualizado com sucesso!')
+        
+        // Atualiza o estado do usuário
+        setUsuario(prev => ({ 
+          ...prev, 
+          username: data.data.username
+        }))
+        
+        // Atualiza username original
+        setUsernameOriginal(data.data.username)
+        
+        // Sai do modo de edição
+        setEditandoUsername(false)
+        
+        // Atualiza os dados do usuário no localStorage
+        const updatedUser = { ...user, username: data.data.username }
+        localStorage.setItem('unisafe_user', JSON.stringify(updatedUser))
+      } else {
+        setErro(data.message || 'Erro ao atualizar username')
+      }
+    } catch (error) {
+      console.error('Erro ao salvar username:', error)
+      setErro('Erro ao salvar username')
+    } finally {
+      setSalvando(false)
+    }
+  }
+
+  /**
    * Carrega lista de amigos do usuário
    */
   const carregarAmigos = async () => {
@@ -775,65 +853,115 @@ export default function Perfil() {
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Nome de Usuário {!usuario?.username && <span className="text-red-600">*</span>}
                   </label>
-                  <div className="relative">
-                    <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-500 pointer-events-none">
-                      @
-                    </span>
-                    <input
-                      type="text"
-                      required={!usuario?.username}
-                      minLength={3}
-                      maxLength={30}
-                      value={formData.username}
-                      onChange={handleUsernameChange}
-                      onBlur={handleUsernameBlur}
-                      className={`w-full pl-8 pr-10 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                        verificandoUsername 
-                          ? 'border-gray-300' 
-                          : usernameJaEmUso 
-                            ? 'border-red-500' 
-                            : formData.username && !usernameJaEmUso && formData.username !== usernameOriginal
-                              ? 'border-green-500'
-                              : 'border-gray-300'
-                      }`}
-                      placeholder="seunome123"
-                      disabled={verificandoUsername}
-                    />
-                    {verificandoUsername && (
-                      <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-                        <svg className="animate-spin h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                        </svg>
+                  
+                  {!editandoUsername ? (
+                    // Modo de Visualização
+                    <div className="flex items-center space-x-3">
+                      <div className="flex-1 px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg">
+                        {usuario?.username ? (
+                          <span className="text-gray-900 font-medium">@{usuario.username}</span>
+                        ) : (
+                          <span className="text-gray-400 italic">Nenhum username definido</span>
+                        )}
                       </div>
-                    )}
-                    {!verificandoUsername && usernameJaEmUso && (
-                      <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-                        <svg className="h-5 w-5 text-red-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                      <button
+                        type="button"
+                        onClick={() => setEditandoUsername(true)}
+                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                         </svg>
+                        <span>{usuario?.username ? 'Editar' : 'Definir'}</span>
+                      </button>
+                    </div>
+                  ) : (
+                    // Modo de Edição
+                    <div className="space-y-3">
+                      <div className="relative">
+                        <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-500 pointer-events-none">
+                          @
+                        </span>
+                        <input
+                          type="text"
+                          required={!usuario?.username}
+                          minLength={3}
+                          maxLength={30}
+                          value={formData.username}
+                          onChange={handleUsernameChange}
+                          onBlur={handleUsernameBlur}
+                          autoFocus
+                          className={`w-full pl-8 pr-10 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                            verificandoUsername 
+                              ? 'border-gray-300' 
+                              : usernameJaEmUso 
+                                ? 'border-red-500' 
+                                : formData.username && !usernameJaEmUso && formData.username !== usernameOriginal
+                                  ? 'border-green-500'
+                                  : 'border-gray-300'
+                          }`}
+                          placeholder="seunome123"
+                          disabled={verificandoUsername}
+                        />
+                        {verificandoUsername && (
+                          <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                            <svg className="animate-spin h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                          </div>
+                        )}
+                        {!verificandoUsername && usernameJaEmUso && (
+                          <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                            <svg className="h-5 w-5 text-red-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                            </svg>
+                          </div>
+                        )}
+                        {!verificandoUsername && !usernameJaEmUso && formData.username && formData.username !== usernameOriginal && (
+                          <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                            <svg className="h-5 w-5 text-green-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                            </svg>
+                          </div>
+                        )}
                       </div>
-                    )}
-                    {!verificandoUsername && !usernameJaEmUso && formData.username && formData.username !== usernameOriginal && (
-                      <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-                        <svg className="h-5 w-5 text-green-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                        </svg>
+                      {usernameJaEmUso && (
+                        <p className="text-xs text-red-600">Este nome de usuário já está em uso</p>
+                      )}
+                      {!usernameJaEmUso && formData.username && formData.username !== usernameOriginal && (
+                        <p className="text-xs text-green-600">Nome de usuário disponível!</p>
+                      )}
+                      <p className="text-xs text-gray-500">
+                        Use apenas letras minúsculas, números, pontos e underscores (3-30 caracteres)
+                      </p>
+                      
+                      <div className="flex space-x-3">
+                        <button
+                          type="button"
+                          onClick={salvarUsername}
+                          disabled={salvando || usernameJaEmUso || !formData.username || formData.username.length < 3}
+                          className="flex-1 bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700 focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center space-x-2"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                          </svg>
+                          <span>{salvando ? 'Salvando...' : 'Salvar Username'}</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={cancelarEdicaoUsername}
+                          disabled={salvando}
+                          className="flex-1 bg-gray-200 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-300 transition-colors flex items-center justify-center space-x-2"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                          <span>Cancelar</span>
+                        </button>
                       </div>
-                    )}
-                  </div>
-                  {usernameJaEmUso && (
-                    <p className="text-xs text-red-600 mt-1">Este nome de usuário já está em uso</p>
+                    </div>
                   )}
-                  {!usernameJaEmUso && formData.username && formData.username !== usernameOriginal && (
-                    <p className="text-xs text-green-600 mt-1">Nome de usuário disponível!</p>
-                  )}
-                  <p className="text-xs text-gray-500 mt-1">
-                    {usuario?.username 
-                      ? 'Use apenas letras minúsculas, números, pontos e underscores (3-30 caracteres)'
-                      : 'Obrigatório para novos recursos. Use apenas letras minúsculas, números, pontos e underscores (3-30 caracteres)'
-                    }
-                  </p>
                 </div>
 
                 <div>

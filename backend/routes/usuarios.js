@@ -200,6 +200,7 @@ router.get('/:id', verificarAuth, async (req, res) => {
       SELECT 
         id,
         nome,
+        username,
         email,
         bio,
         avatar_url,
@@ -227,6 +228,7 @@ router.get('/:id', verificarAuth, async (req, res) => {
       data: {
         id: usuario.id,
         nome: usuario.nome,
+        username: usuario.username,
         email: usuario.email,
         bio: usuario.bio,
         avatar_url: usuario.foto_perfil || usuario.avatar_url, // Prioriza foto_perfil (Google)

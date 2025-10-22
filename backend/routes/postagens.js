@@ -217,6 +217,54 @@ router.post('/', verificarAuth, [
 })
 
 /**
+ * GET /api/postagens/usuario/:usuarioId
+ * Lista todas as postagens de um usuário específico
+ */
+router.get('/usuario/:usuarioId', async (req, res) => {
+  try {
+    const { usuarioId } = req.params
+    
+    logger.info(`[POSTAGENS USUARIO] Buscando postagens do usuário ${usuarioId}`)
+
+    // Query para buscar postagens do usuário (apenas ativas)
+    const postagens = await db.query(`
+      SELECT 
+        p.id,
+        p.titulo,
+        p.conteudo,
+        p.categoria as tipo,
+        p.localizacao,
+        p.criado_em,
+        p.usuario_id,
+        (SELECT COUNT(*) FROM curtidas WHERE postagem_id = p.id) as curtidas,
+        (SELECT COUNT(*) FROM comentarios WHERE postagem_id = p.id) as comentarios
+      FROM postagens p
+      WHERE p.usuario_id = ? AND p.ativo = TRUE
+      ORDER BY p.criado_em DESC
+    `, [usuarioId])
+
+    logger.info(`[POSTAGENS USUARIO] ${postagens.length} postagens ativas encontradas para usuário ${usuarioId}`)
+    
+    if (postagens.length > 0) {
+      logger.info(`[POSTAGENS USUARIO] IDs das postagens: ${postagens.map(p => p.id).join(', ')}`)
+    }
+
+    res.json({
+      success: true,
+      data: postagens,
+      total: postagens.length
+    })
+
+  } catch (error) {
+    logger.error('[POSTAGENS USUARIO] Erro:', error)
+    res.status(500).json({
+      success: false,
+      message: 'Erro ao buscar postagens do usuário'
+    })
+  }
+})
+
+/**
  * GET /api/postagens/:id
  * Obtém uma postagem específica com seus comentários
  */

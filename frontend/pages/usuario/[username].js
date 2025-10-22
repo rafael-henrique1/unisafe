@@ -26,6 +26,10 @@ export default function PerfilPublico() {
   const [mensagem, setMensagem] = useState('')
   const [mensagemTipo, setMensagemTipo] = useState('') // 'sucesso' ou 'erro'
   const [usuarioLogado, setUsuarioLogado] = useState(null)
+  
+  // Estados de postagens
+  const [postagens, setPostagens] = useState([])
+  const [loadingPostagens, setLoadingPostagens] = useState(true)
 
   /**
    * Carrega o perfil público do usuário
@@ -50,6 +54,15 @@ export default function PerfilPublico() {
       verificarStatusAmizade()
     }
   }, [usuario, usuarioLogado])
+
+  /**
+   * Carrega as postagens do usuário quando o perfil é carregado
+   */
+  useEffect(() => {
+    if (usuario) {
+      carregarPostagensUsuario()
+    }
+  }, [usuario])
 
   const carregarPerfilPublico = async () => {
     try {
@@ -97,6 +110,38 @@ export default function PerfilPublico() {
       }
     } catch (error) {
       console.error('Erro ao verificar status de amizade:', error)
+    }
+  }
+
+  /**
+   * Carrega as postagens do usuário
+   */
+  const carregarPostagensUsuario = async () => {
+    try {
+      setLoadingPostagens(true)
+      
+      console.log(`[PERFIL PÚBLICO] Carregando postagens do usuário ID: ${usuario.id}`)
+      
+      const response = await fetch(`${API_URL}/api/postagens/usuario/${usuario.id}`, {
+        cache: 'no-cache', // Evita cache
+        headers: {
+          'Cache-Control': 'no-cache'
+        }
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        console.log(`[PERFIL PÚBLICO] ${data.data?.length || 0} postagens recebidas`)
+        setPostagens(data.data || [])
+      } else {
+        console.error('[PERFIL PÚBLICO] Erro ao carregar postagens:', response.status)
+        setPostagens([])
+      }
+    } catch (error) {
+      console.error('[PERFIL PÚBLICO] Erro ao carregar postagens:', error)
+      setPostagens([])
+    } finally {
+      setLoadingPostagens(false)
     }
   }
 
@@ -317,6 +362,48 @@ export default function PerfilPublico() {
     })
   }
 
+  /**
+   * Formata a data da postagem
+   */
+  const formatarDataPostagem = (data) => {
+    if (!data) return ''
+    const dataObj = new Date(data)
+    const agora = new Date()
+    const diffMs = agora - dataObj
+    const diffMins = Math.floor(diffMs / 60000)
+    const diffHoras = Math.floor(diffMs / 3600000)
+    const diffDias = Math.floor(diffMs / 86400000)
+
+    if (diffMins < 1) return 'Agora'
+    if (diffMins < 60) return `${diffMins} min atrás`
+    if (diffHoras < 24) return `${diffHoras}h atrás`
+    if (diffDias < 7) return `${diffDias}d atrás`
+    
+    return dataObj.toLocaleDateString('pt-BR', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric'
+    })
+  }
+
+  /**
+   * Retorna cor do badge baseado no tipo
+   */
+  const getTipoCor = (tipo) => {
+    switch (tipo) {
+      case 'aviso':
+        return 'bg-yellow-100 text-yellow-800'
+      case 'denuncia':
+        return 'bg-red-100 text-red-800'
+      case 'ajuda':
+        return 'bg-purple-100 text-purple-800'
+      case 'discussao':
+        return 'bg-blue-100 text-blue-800'
+      default:
+        return 'bg-gray-100 text-gray-800'
+    }
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -520,6 +607,102 @@ export default function PerfilPublico() {
               </div>
             </div>
           </div>
+        </div>
+
+        {/* Seção de Postagens */}
+        <div className="mt-8">
+          <h2 className="text-2xl font-bold text-gray-900 mb-6">
+            Postagens de @{usuario?.username}
+          </h2>
+
+          {loadingPostagens ? (
+            <div className="bg-white rounded-lg shadow-md p-12 text-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+              <p className="text-gray-600">Carregando postagens...</p>
+            </div>
+          ) : postagens.length === 0 ? (
+            <div className="bg-white rounded-lg shadow-md p-12 text-center">
+              <div className="text-6xl mb-4">📝</div>
+              <p className="text-gray-600 text-lg mb-2">Nenhuma postagem ainda</p>
+              <p className="text-sm text-gray-500">
+                @{usuario?.username} ainda não publicou nada no UniSafe
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-6">
+              {postagens.map((postagem) => (
+                <div 
+                  key={postagem.id} 
+                  className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow"
+                >
+                  {/* Header da postagem */}
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold">
+                        {usuario?.nome?.charAt(0)?.toUpperCase() || 'U'}
+                      </div>
+                      <div>
+                        <div className="flex items-center space-x-2">
+                          <p className="font-medium text-gray-900">
+                            {usuario?.nome}
+                          </p>
+                          <Link 
+                            href={`/usuario/@${usuario?.username}`}
+                            className="text-sm text-blue-600 font-medium hover:text-blue-800 hover:underline"
+                          >
+                            @{usuario?.username}
+                          </Link>
+                        </div>
+                        <p className="text-sm text-gray-500">
+                          {formatarDataPostagem(postagem.criado_em)}
+                        </p>
+                      </div>
+                    </div>
+                    <span className={`px-3 py-1 rounded-full text-xs font-medium uppercase ${getTipoCor(postagem.tipo)}`}>
+                      {postagem.tipo || 'aviso'}
+                    </span>
+                  </div>
+
+                  {/* Título da postagem (se houver) */}
+                  {postagem.titulo && (
+                    <div className="mb-3">
+                      <h3 className="text-lg font-semibold text-gray-900">
+                        {postagem.titulo}
+                      </h3>
+                    </div>
+                  )}
+
+                  {/* Conteúdo da postagem */}
+                  <div className="mb-4">
+                    <p className="text-gray-800 leading-relaxed whitespace-pre-wrap">
+                      {postagem.conteudo || 'Conteúdo não disponível'}
+                    </p>
+                  </div>
+
+                  {/* Localização (se houver) */}
+                  {postagem.localizacao && (
+                    <div className="mb-4 text-sm text-gray-600">
+                      <span className="inline-flex items-center">
+                        📍 {postagem.localizacao}
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Estatísticas da postagem */}
+                  <div className="flex items-center space-x-6 text-sm text-gray-500 pt-3 border-t border-gray-100">
+                    <div className="flex items-center space-x-1">
+                      <span>❤️</span>
+                      <span>{postagem.curtidas || 0} curtidas</span>
+                    </div>
+                    <div className="flex items-center space-x-1">
+                      <span>💬</span>
+                      <span>{postagem.comentarios || 0} comentários</span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </main>
     </div>

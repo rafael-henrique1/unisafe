@@ -134,7 +134,7 @@ router.get('/', verificarAuth, async (req, res) => {
         nome,
         curso,
         criado_em,
-        (SELECT COUNT(*) FROM postagens WHERE usuario_id = usuarios.id) as total_postagens
+        (SELECT COUNT(*) FROM postagens WHERE usuario_id = usuarios.id AND ativo = 1) as total_postagens
       FROM usuarios
     `
 

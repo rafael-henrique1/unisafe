@@ -146,19 +146,16 @@ export default function Perfil() {
     // Escuta nova solicitação de amizade
     socket.on('nova_solicitacao_amizade', (data) => {
       setMensagem(`${data.remetente_nome} enviou uma solicitação de amizade!`)
-      // Se estiver na aba de pedidos, recarrega a lista
-      if (abaAtiva === 'pedidos') {
-        carregarPedidos()
-      }
+      // Sempre recarrega os pedidos para atualizar o badge
+      carregarPedidos()
     })
 
     // Escuta amizade aceita
     socket.on('amizade_aceita', (data) => {
       setMensagem(`${data.amigo_nome} aceitou sua solicitação de amizade!`)
-      // Se estiver na aba de amigos, recarrega a lista
-      if (abaAtiva === 'amigos') {
-        carregarAmigos()
-      }
+      // Recarrega amigos e pedidos para atualizar badges
+      carregarAmigos()
+      carregarPedidos()
     })
 
     return () => {
@@ -638,6 +635,14 @@ export default function Perfil() {
       setErro('Erro ao remover amigo')
     }
   }
+
+  /**
+   * useEffect para carregar pedidos pendentes ao montar o componente
+   * (para mostrar o badge mesmo sem entrar na aba)
+   */
+  useEffect(() => {
+    carregarPedidos()
+  }, [])
 
   /**
    * useEffect para carregar amigos e pedidos quando a aba mudar

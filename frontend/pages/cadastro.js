@@ -13,6 +13,7 @@ export default function Cadastro() {
   // Estados para controlar o formulário de cadastro da comunidade
   const [formData, setFormData] = useState({
     nome: '',        // Nome completo do usuário
+    username: '',    // Nome de usuário (@username)
     email: '',       // Email pessoal (não institucional)
     senha: '',       // Senha do usuário
     confirmarSenha: '', // Confirmação da senha
@@ -24,6 +25,10 @@ export default function Cadastro() {
   const [mostrarSenha, setMostrarSenha] = useState(false)
   const [emailJaCadastrado, setEmailJaCadastrado] = useState(false)
   const [verificandoEmail, setVerificandoEmail] = useState(false)
+  const [usernameJaEmUso, setUsernameJaEmUso] = useState(false)
+  const [usernameInvalido, setUsernameInvalido] = useState(false)
+  const [mensagemUsername, setMensagemUsername] = useState('')
+  const [verificandoUsername, setVerificandoUsername] = useState(false)
   
   const router = useRouter()
 
@@ -129,6 +134,87 @@ export default function Cadastro() {
   }
 
   /**
+   * Verifica se o username já está em uso
+   * @param {string} username - Username a ser verificado
+   */
+  const verificarUsernameDisponivel = async (username) => {
+    // Limpa username para validação
+    const usernameClean = username.trim().toLowerCase()
+    
+    // Validações básicas
+    if (!usernameClean || usernameClean.length < 3) {
+      setUsernameJaEmUso(false)
+      setUsernameInvalido(false)
+      setMensagemUsername('')
+      return
+    }
+
+    setVerificandoUsername(true)
+    setUsernameJaEmUso(false)
+    setUsernameInvalido(false)
+    setMensagemUsername('')
+    
+    try {
+      const response = await fetch(`${endpoints.usuarios}/verificar-username?username=${encodeURIComponent(usernameClean)}`)
+      
+      if (response.ok) {
+        const result = await response.json()
+        
+        if (!result.valido) {
+          setUsernameInvalido(true)
+          setMensagemUsername(result.mensagem || 'Nome de usuário inválido')
+        } else if (result.existe) {
+          setUsernameJaEmUso(true)
+          setMensagemUsername('Este nome de usuário já está em uso')
+        } else {
+          // Username disponível
+          setMensagemUsername('✓ Nome de usuário disponível')
+        }
+      }
+    } catch (err) {
+      console.error('Erro ao verificar username:', err)
+    } finally {
+      setVerificandoUsername(false)
+    }
+  }
+
+  /**
+   * Manipula quando o usuário sai do campo de username
+   */
+  const handleUsernameBlur = () => {
+    if (formData.username) {
+      verificarUsernameDisponivel(formData.username)
+    }
+  }
+
+  /**
+   * Valida formato do username enquanto digita
+   */
+  const handleUsernameChange = (e) => {
+    let value = e.target.value.toLowerCase() // Converte para minúsculas
+    
+    // Remove espaços e caracteres não permitidos enquanto digita
+    value = value.replace(/[^a-z0-9._]/g, '')
+    
+    // Limita a 30 caracteres
+    if (value.length > 30) {
+      value = value.substring(0, 30)
+    }
+    
+    setFormData({
+      ...formData,
+      username: value
+    })
+    
+    // Limpa mensagens se o campo estiver vazio
+    if (!value) {
+      setUsernameJaEmUso(false)
+      setUsernameInvalido(false)
+      setMensagemUsername('')
+    }
+  }
+
+  /**
    * Valida os dados do formulário antes do envio
    * Implementa validações robustas para segurança da comunidade
    * @returns {boolean} - True se válido, false caso contrário
@@ -137,6 +223,35 @@ export default function Cadastro() {
     // Validação de email já cadastrado
     if (emailJaCadastrado) {
       setError('Este email já está cadastrado. Use outro email ou faça login.')
+      return false
+    }
+
+    // Validação de username já em uso
+    if (usernameJaEmUso) {
+      setError('Este nome de usuário já está em uso. Escolha outro.')
+      return false
+    }
+
+    // Validação de username inválido
+    if (usernameInvalido) {
+      setError('Nome de usuário inválido. ' + mensagemUsername)
+      return false
+    }
+
+    // Validação de username (formato e tamanho)
+    if (!formData.username || formData.username.length < 3) {
+      setError('Nome de usuário deve ter pelo menos 3 caracteres')
+      return false
+    }
+
+    if (formData.username.length > 30) {
+      setError('Nome de usuário deve ter no máximo 30 caracteres')
+      return false
+    }
+
+    const usernameRegex = /^[a-z0-9._]+$/
+    if (!usernameRegex.test(formData.username)) {
+      setError('Nome de usuário pode conter apenas letras minúsculas, números, pontos e sublinhados')
       return false
     }
 
@@ -302,6 +417,54 @@ export default function Cadastro() {
                 <p className="mt-1 text-xs text-gray-500">
                   Digite seu nome e sobrenome completos
                 </p>
+              </div>
+
+              {/* Campo de nome de usuário */}
+              <div>
+                <label htmlFor="username" className="block text-sm font-medium text-gray-700">
+                  Nome de usuário *
+                </label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <span className="text-gray-500 sm:text-sm">@</span>
+                  </div>
+                  <input
+                    id="username"
+                    name="username"
+                    type="text"
+                    required
+                    value={formData.username}
+                    onChange={handleUsernameChange}
+                    onBlur={handleUsernameBlur}
+                    className={`input-field mt-1 pl-7 ${
+                      usernameJaEmUso || usernameInvalido ? 'border-red-500' : 
+                      mensagemUsername.includes('✓') ? 'border-green-500' : ''
+                    } ${verificandoUsername ? 'pr-10' : ''}`}
+                    placeholder="seu_usuario"
+                    maxLength={30}
+                  />
+                  {verificandoUsername && (
+                    <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
+                      <svg className="animate-spin h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                    </div>
+                  )}
+                </div>
+                {mensagemUsername && (
+                  <p className={`mt-1 text-xs ${
+                    usernameJaEmUso || usernameInvalido ? 'text-red-600' :
+                    mensagemUsername.includes('✓') ? 'text-green-600' : 'text-gray-500'
+                  }`}>
+                    {mensagemUsername}
+                  </p>
+                )}
+                {!mensagemUsername && (
+                  <p className="mt-1 text-xs text-gray-500">
+                    3-30 caracteres. Apenas letras, números, pontos e sublinhados
+                  </p>
+                )}
               </div>
 
               {/* Campo de email pessoal */}

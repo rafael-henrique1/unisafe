@@ -25,6 +25,7 @@ export default function Perfil() {
   // Estados do formulário
   const [formData, setFormData] = useState({
     nome: '',
+    username: '',
     bio: '',
     avatar_url: '',
     telefone: ''
@@ -46,6 +47,19 @@ export default function Perfil() {
   const [avatarError, setAvatarError] = useState(false)
   const [mostrarSenhaAtual, setMostrarSenhaAtual] = useState(false)
   const [mostrarNovaSenha, setMostrarNovaSenha] = useState(false)
+
+  // Estados de validação de username
+  const [usernameJaEmUso, setUsernameJaEmUso] = useState(false)
+  const [usernameInvalido, setUsernameInvalido] = useState(false)
+  const [mensagemUsername, setMensagemUsername] = useState('')
+  const [verificandoUsername, setVerificandoUsername] = useState(false)
+  const [usernameOriginal, setUsernameOriginal] = useState('') // Para comparar se mudou
+
+  // Estados de amizade
+  const [amigos, setAmigos] = useState([])
+  const [pedidosAmizade, setPedidosAmizade] = useState([])
+  const [loadingAmigos, setLoadingAmigos] = useState(false)
+  const [abaAtiva, setAbaAtiva] = useState('perfil') // 'perfil' | 'amigos' | 'pedidos'
 
   /**
    * Formata o telefone no padrão (11) 99999-9999
@@ -128,6 +142,24 @@ export default function Perfil() {
       }
     })
 
+    // Escuta nova solicitação de amizade
+    socket.on('nova_solicitacao_amizade', (data) => {
+      setMensagem(`${data.remetente_nome} enviou uma solicitação de amizade!`)
+      // Se estiver na aba de pedidos, recarrega a lista
+      if (abaAtiva === 'pedidos') {
+        carregarPedidos()
+      }
+    })
+
+    // Escuta amizade aceita
+    socket.on('amizade_aceita', (data) => {
+      setMensagem(`${data.amigo_nome} aceitou sua solicitação de amizade!`)
+      // Se estiver na aba de amigos, recarrega a lista
+      if (abaAtiva === 'amigos') {
+        carregarAmigos()
+      }
+    })
+
     return () => {
       socket.disconnect()
       socketRef.current = null
@@ -159,8 +191,10 @@ export default function Perfil() {
       if (response.ok) {
         const data = await response.json()
         setUsuario(data.data)
+        setUsernameOriginal(data.data.username || '') // Salva username original
         setFormData({
           nome: data.data.nome || '',
+          username: data.data.username || '',
           bio: data.data.bio || '',
           avatar_url: data.data.avatar_url || '',
           telefone: formatarTelefone(data.data.telefone || '')
@@ -213,10 +247,16 @@ export default function Perfil() {
         setUsuario(prev => ({ 
           ...prev, 
           nome: data.data.nome,
+          username: data.data.username,
           bio: data.data.bio,
           avatar_url: data.data.avatar_url,
           telefone: data.data.telefone
         }))
+        
+        // Atualiza username original se mudou
+        if (data.data.username) {
+          setUsernameOriginal(data.data.username)
+        }
         
         // Atualiza o formData com o telefone formatado
         setFormData(prev => ({
@@ -228,7 +268,7 @@ export default function Perfil() {
         setAvatarError(false)
         
         // Atualiza os dados do usuário no localStorage
-        const updatedUser = { ...user, nome: data.data.nome }
+        const updatedUser = { ...user, nome: data.data.nome, username: data.data.username }
         localStorage.setItem('unisafe_user', JSON.stringify(updatedUser))
       } else {
         setErro(data.message || 'Erro ao atualizar perfil')
@@ -297,6 +337,242 @@ export default function Perfil() {
   }
 
   /**
+   * Verifica se o username já está em uso
+   */
+  const verificarUsernameDisponivel = async (username) => {
+    const usernameClean = username.trim().toLowerCase()
+    
+    // Se não mudou o username, não precisa verificar
+    if (usernameClean === usernameOriginal.toLowerCase()) {
+      setUsernameJaEmUso(false)
+      setUsernameInvalido(false)
+      setMensagemUsername('')
+      return
+    }
+    
+    if (!usernameClean || usernameClean.length < 3) {
+      setUsernameJaEmUso(false)
+      setUsernameInvalido(false)
+      setMensagemUsername('')
+      return
+    }
+
+    setVerificandoUsername(true)
+    setUsernameJaEmUso(false)
+    setUsernameInvalido(false)
+    setMensagemUsername('')
+    
+    try {
+      const response = await fetch(`${endpoints.usuarios}/verificar-username?username=${encodeURIComponent(usernameClean)}`)
+      
+      if (response.ok) {
+        const result = await response.json()
+        
+        if (!result.valido) {
+          setUsernameInvalido(true)
+          setMensagemUsername(result.mensagem || 'Nome de usuário inválido')
+        } else if (result.existe) {
+          setUsernameJaEmUso(true)
+          setMensagemUsername('Este nome de usuário já está em uso')
+        } else {
+          setMensagemUsername('✓ Nome de usuário disponível')
+        }
+      }
+    } catch (err) {
+      console.error('Erro ao verificar username:', err)
+    } finally {
+      setVerificandoUsername(false)
+    }
+  }
+
+  /**
+   * Manipula quando o usuário sai do campo de username
+   */
+  const handleUsernameBlur = () => {
+    if (formData.username) {
+      verificarUsernameDisponivel(formData.username)
+    }
+  }
+
+  /**
+   * Valida formato do username enquanto digita
+   */
+  const handleUsernameChange = (e) => {
+    const value = e.target.value
+    
+    // Converte para minúsculas e remove caracteres não permitidos
+    let usernameClean = value.toLowerCase().replace(/[^a-z0-9._]/g, '')
+    
+    // Limita a 30 caracteres
+    if (usernameClean.length > 30) {
+      usernameClean = usernameClean.substring(0, 30)
+    }
+    
+    setFormData(prev => ({
+      ...prev,
+      username: usernameClean
+    }))
+    
+    // Limpa mensagens se o campo estiver vazio
+    if (!usernameClean) {
+      setUsernameJaEmUso(false)
+      setUsernameInvalido(false)
+      setMensagemUsername('')
+    }
+  }
+
+  /**
+   * Carrega lista de amigos do usuário
+   */
+  const carregarAmigos = async () => {
+    setLoadingAmigos(true)
+    try {
+      const token = localStorage.getItem('unisafe_token')
+      const userData = localStorage.getItem('unisafe_user')
+      const user = JSON.parse(userData)
+
+      const response = await fetch(endpoints.amigos.lista(user.id), {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        setAmigos(data.data || [])
+      }
+    } catch (error) {
+      console.error('Erro ao carregar amigos:', error)
+    } finally {
+      setLoadingAmigos(false)
+    }
+  }
+
+  /**
+   * Carrega pedidos de amizade pendentes
+   */
+  const carregarPedidos = async () => {
+    setLoadingAmigos(true)
+    try {
+      const token = localStorage.getItem('unisafe_token')
+
+      const response = await fetch(endpoints.amigos.pedidos, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        setPedidosAmizade(data.data || [])
+      }
+    } catch (error) {
+      console.error('Erro ao carregar pedidos:', error)
+    } finally {
+      setLoadingAmigos(false)
+    }
+  }
+
+  /**
+   * Aceita uma solicitação de amizade
+   */
+  const aceitarAmizade = async (solicitacaoId) => {
+    try {
+      const token = localStorage.getItem('unisafe_token')
+
+      const response = await fetch(endpoints.amigos.aceitar, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ solicitacao_id: solicitacaoId })
+      })
+
+      if (response.ok) {
+        setMensagem('Amizade aceita!')
+        carregarPedidos()
+        carregarAmigos()
+      } else {
+        const data = await response.json()
+        setErro(data.message || 'Erro ao aceitar amizade')
+      }
+    } catch (error) {
+      console.error('Erro ao aceitar amizade:', error)
+      setErro('Erro ao aceitar amizade')
+    }
+  }
+
+  /**
+   * Recusa uma solicitação de amizade
+   */
+  const recusarAmizade = async (solicitacaoId) => {
+    try {
+      const token = localStorage.getItem('unisafe_token')
+
+      const response = await fetch(endpoints.amigos.recusar, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ solicitacao_id: solicitacaoId })
+      })
+
+      if (response.ok) {
+        setMensagem('Solicitação recusada')
+        carregarPedidos()
+      } else {
+        const data = await response.json()
+        setErro(data.message || 'Erro ao recusar amizade')
+      }
+    } catch (error) {
+      console.error('Erro ao recusar amizade:', error)
+      setErro('Erro ao recusar amizade')
+    }
+  }
+
+  /**
+   * Remove um amigo
+   */
+  const removerAmigo = async (amigoId) => {
+    if (!confirm('Tem certeza que deseja remover este amigo?')) return
+
+    try {
+      const token = localStorage.getItem('unisafe_token')
+
+      const response = await fetch(endpoints.amigos.remover(amigoId), {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
+
+      if (response.ok) {
+        setMensagem('Amigo removido')
+        carregarAmigos()
+      } else {
+        const data = await response.json()
+        setErro(data.message || 'Erro ao remover amigo')
+      }
+    } catch (error) {
+      console.error('Erro ao remover amigo:', error)
+      setErro('Erro ao remover amigo')
+    }
+  }
+
+  /**
+   * useEffect para carregar amigos e pedidos quando a aba mudar
+   */
+  useEffect(() => {
+    if (abaAtiva === 'amigos') {
+      carregarAmigos()
+    } else if (abaAtiva === 'pedidos') {
+      carregarPedidos()
+    }
+  }, [abaAtiva])
+
+  /**
    * Formata a data de membro desde
    */
   const formatarDataMembro = (data) => {
@@ -362,6 +638,52 @@ export default function Perfil() {
 
       {/* Conteúdo Principal */}
       <div className="max-w-4xl mx-auto px-4 py-8">
+        {/* Abas de Navegação */}
+        <div className="bg-white rounded-lg shadow-sm border mb-6">
+          <div className="flex border-b">
+            <button
+              onClick={() => setAbaAtiva('perfil')}
+              className={`flex-1 px-6 py-4 text-sm font-medium transition-colors ${
+                abaAtiva === 'perfil'
+                  ? 'text-blue-600 border-b-2 border-blue-600'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              📝 Meu Perfil
+            </button>
+            <button
+              onClick={() => setAbaAtiva('amigos')}
+              className={`flex-1 px-6 py-4 text-sm font-medium transition-colors relative ${
+                abaAtiva === 'amigos'
+                  ? 'text-blue-600 border-b-2 border-blue-600'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              👥 Meus Amigos
+              {amigos.length > 0 && (
+                <span className="ml-2 bg-blue-100 text-blue-600 px-2 py-1 rounded-full text-xs">
+                  {amigos.length}
+                </span>
+              )}
+            </button>
+            <button
+              onClick={() => setAbaAtiva('pedidos')}
+              className={`flex-1 px-6 py-4 text-sm font-medium transition-colors relative ${
+                abaAtiva === 'pedidos'
+                  ? 'text-blue-600 border-b-2 border-blue-600'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              📬 Solicitações
+              {pedidosAmizade.length > 0 && (
+                <span className="ml-2 bg-red-100 text-red-600 px-2 py-1 rounded-full text-xs">
+                  {pedidosAmizade.length}
+                </span>
+              )}
+            </button>
+          </div>
+        </div>
+
         {/* Mensagens */}
         {mensagem && (
           <div className="mb-6 bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg">
@@ -375,6 +697,8 @@ export default function Perfil() {
           </div>
         )}
 
+        {/* Conteúdo das Abas */}
+        {abaAtiva === 'perfil' && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Coluna Esquerda - Informações Gerais */}
           <div className="lg:col-span-1">
@@ -398,6 +722,9 @@ export default function Perfil() {
                 </div>
                 <h2 className="text-xl font-semibold text-gray-900">{usuario?.nome}</h2>
                 <p className="text-gray-600">{usuario?.email}</p>
+                {usuario?.username && (
+                  <p className="text-blue-600 font-medium">@{usuario.username}</p>
+                )}
               </div>
 
               {/* Estatísticas */}
@@ -442,6 +769,71 @@ export default function Perfil() {
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     placeholder="Seu nome completo"
                   />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Nome de Usuário {!usuario?.username && <span className="text-red-600">*</span>}
+                  </label>
+                  <div className="relative">
+                    <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-500 pointer-events-none">
+                      @
+                    </span>
+                    <input
+                      type="text"
+                      required={!usuario?.username}
+                      minLength={3}
+                      maxLength={30}
+                      value={formData.username}
+                      onChange={handleUsernameChange}
+                      onBlur={handleUsernameBlur}
+                      className={`w-full pl-8 pr-10 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                        verificandoUsername 
+                          ? 'border-gray-300' 
+                          : usernameJaEmUso 
+                            ? 'border-red-500' 
+                            : formData.username && !usernameJaEmUso && formData.username !== usernameOriginal
+                              ? 'border-green-500'
+                              : 'border-gray-300'
+                      }`}
+                      placeholder="seunome123"
+                      disabled={verificandoUsername}
+                    />
+                    {verificandoUsername && (
+                      <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                        <svg className="animate-spin h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                      </div>
+                    )}
+                    {!verificandoUsername && usernameJaEmUso && (
+                      <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                        <svg className="h-5 w-5 text-red-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                        </svg>
+                      </div>
+                    )}
+                    {!verificandoUsername && !usernameJaEmUso && formData.username && formData.username !== usernameOriginal && (
+                      <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                        <svg className="h-5 w-5 text-green-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                        </svg>
+                      </div>
+                    )}
+                  </div>
+                  {usernameJaEmUso && (
+                    <p className="text-xs text-red-600 mt-1">Este nome de usuário já está em uso</p>
+                  )}
+                  {!usernameJaEmUso && formData.username && formData.username !== usernameOriginal && (
+                    <p className="text-xs text-green-600 mt-1">Nome de usuário disponível!</p>
+                  )}
+                  <p className="text-xs text-gray-500 mt-1">
+                    {usuario?.username 
+                      ? 'Use apenas letras minúsculas, números, pontos e underscores (3-30 caracteres)'
+                      : 'Obrigatório para novos recursos. Use apenas letras minúsculas, números, pontos e underscores (3-30 caracteres)'
+                    }
+                  </p>
                 </div>
 
                 <div>
@@ -607,6 +999,129 @@ export default function Perfil() {
             </div>
           </div>
         </div>
+        )}
+
+        {/* Aba de Amigos */}
+        {abaAtiva === 'amigos' && (
+          <div className="bg-white rounded-lg shadow-sm border p-6">
+            <h2 className="text-xl font-semibold text-gray-900 mb-6">Meus Amigos</h2>
+            
+            {loadingAmigos ? (
+              <div className="text-center py-12">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                <p className="text-gray-600">Carregando amigos...</p>
+              </div>
+            ) : amigos.length === 0 ? (
+              <div className="text-center py-12">
+                <div className="text-6xl mb-4">👥</div>
+                <p className="text-gray-600 mb-2">Você ainda não tem amigos</p>
+                <p className="text-sm text-gray-500">Explore o feed e adicione pessoas da sua comunidade</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {amigos.map((amigo) => (
+                  <div key={amigo.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 transition">
+                    <div className="flex items-center space-x-4">
+                      {amigo.foto_perfil ? (
+                        <img
+                          src={amigo.foto_perfil}
+                          alt={amigo.nome}
+                          className="w-12 h-12 rounded-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center">
+                          <span className="text-blue-600 font-semibold text-lg">
+                            {amigo.nome.charAt(0).toUpperCase()}
+                          </span>
+                        </div>
+                      )}
+                      <div>
+                        <h3 className="font-medium text-gray-900">{amigo.nome}</h3>
+                        {amigo.bio && (
+                          <p className="text-sm text-gray-600 line-clamp-1">{amigo.bio}</p>
+                        )}
+                        <p className="text-xs text-gray-500 mt-1">
+                          Amigos desde {new Date(amigo.amigos_desde).toLocaleDateString('pt-BR')}
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => removerAmigo(amigo.id)}
+                      className="px-4 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg transition"
+                    >
+                      Remover
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Aba de Solicitações */}
+        {abaAtiva === 'pedidos' && (
+          <div className="bg-white rounded-lg shadow-sm border p-6">
+            <h2 className="text-xl font-semibold text-gray-900 mb-6">Solicitações de Amizade</h2>
+            
+            {loadingAmigos ? (
+              <div className="text-center py-12">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                <p className="text-gray-600">Carregando solicitações...</p>
+              </div>
+            ) : pedidosAmizade.length === 0 ? (
+              <div className="text-center py-12">
+                <div className="text-6xl mb-4">📬</div>
+                <p className="text-gray-600 mb-2">Nenhuma solicitação pendente</p>
+                <p className="text-sm text-gray-500">Você receberá notificações quando alguém te adicionar</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {pedidosAmizade.map((pedido) => (
+                  <div key={pedido.solicitacao_id} className="flex items-center justify-between p-4 border rounded-lg">
+                    <div className="flex items-center space-x-4">
+                      {pedido.foto_perfil ? (
+                        <img
+                          src={pedido.foto_perfil}
+                          alt={pedido.nome}
+                          className="w-12 h-12 rounded-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center">
+                          <span className="text-blue-600 font-semibold text-lg">
+                            {pedido.nome.charAt(0).toUpperCase()}
+                          </span>
+                        </div>
+                      )}
+                      <div>
+                        <h3 className="font-medium text-gray-900">{pedido.nome}</h3>
+                        {pedido.bio && (
+                          <p className="text-sm text-gray-600 line-clamp-1">{pedido.bio}</p>
+                        )}
+                        <p className="text-xs text-gray-500 mt-1">
+                          Enviado em {new Date(pedido.criado_em).toLocaleDateString('pt-BR')}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex space-x-2">
+                      <button
+                        onClick={() => aceitarAmizade(pedido.solicitacao_id)}
+                        className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+                      >
+                        Aceitar
+                      </button>
+                      <button
+                        onClick={() => recusarAmizade(pedido.solicitacao_id)}
+                        className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition"
+                      >
+                        Recusar
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   )

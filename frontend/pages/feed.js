@@ -160,6 +160,7 @@ export default function Feed() {
             {
               id: comentario.id, // ID do comentário
               usuario: comentario.nomeUsuario,
+              username: comentario.username,
               conteudo: comentario.conteudo,
               data: 'Agora mesmo'
             }
@@ -1164,13 +1165,20 @@ export default function Feed() {
                               </div>
                               <div className="flex-1">
                                 <div className="flex items-center justify-between mb-1">
-                                  <div className="flex items-center space-x-2">
-                                    <span className="font-medium text-gray-900 text-sm">
-                                      {comentario.usuario || 'Usuário Anônimo'}
-                                    </span>
-                                    <span className="text-xs text-gray-500">
-                                      {comentario.data}
-                                    </span>
+                                  <div className="flex flex-col">
+                                    <div className="flex items-center space-x-2">
+                                      <span className="font-medium text-gray-900 text-sm">
+                                        {comentario.usuario || 'Usuário Anônimo'}
+                                      </span>
+                                      {comentario.username && (
+                                        <span className="text-xs text-blue-600 font-medium">
+                                          @{comentario.username}
+                                        </span>
+                                      )}
+                                      <span className="text-xs text-gray-500">
+                                        · {comentario.data}
+                                      </span>
+                                    </div>
                                   </div>
                                   {/* Botão de excluir (apenas para o autor do comentário) */}
                                   {comentario.usuario === nomeUsuario && (

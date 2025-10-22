@@ -27,6 +27,16 @@ router.post('/cadastro', cadastroLimiter, [
   body('nome').notEmpty().withMessage('Nome completo é obrigatório')
     .isLength({ min: 2 }).withMessage('Nome deve ter pelo menos 2 caracteres')
     .matches(/^[a-zA-Z\s\u00C0-\u017F]+$/).withMessage('Nome deve conter apenas letras e espaços'),
+  body('username').notEmpty().withMessage('Nome de usuário é obrigatório')
+    .isLength({ min: 3, max: 30 }).withMessage('Nome de usuário deve ter entre 3 e 30 caracteres')
+    .matches(/^[a-z0-9._]+$/).withMessage('Use apenas letras minúsculas, números, pontos e sublinhados')
+    .custom((value) => {
+      // Verifica se contém caracteres proibidos
+      if (/[\s!%$@#^&*()+=\[\]{};':"\\|,<>\/?]/.test(value)) {
+        throw new Error('Nome de usuário contém caracteres proibidos')
+      }
+      return true
+    }),
   body('email').isEmail().withMessage('Email inválido')
     .normalizeEmail()
     .custom((value) => {
@@ -53,9 +63,9 @@ router.post('/cadastro', cadastroLimiter, [
       })
     }
 
-    const { nome, email, senha, telefone } = req.body
+    const { nome, username, email, senha, telefone } = req.body
 
-    console.log(`[CADASTRO] Tentativa de cadastro - Email: ${email}`)
+    console.log(`[CADASTRO] Tentativa de cadastro - Username: ${username}, Email: ${email}`)
 
     // Verifica se o nome tem pelo menos nome e sobrenome
     if (nome.trim().split(' ').length < 2) {
@@ -63,6 +73,21 @@ router.post('/cadastro', cadastroLimiter, [
       return res.status(400).json({
         success: false,
         message: 'Por favor, informe seu nome completo (nome e sobrenome)'
+      })
+    }
+
+    // Verifica se o username já está em uso (case insensitive)
+    console.log(`[CADASTRO] Verificando se username já existe: ${username}`)
+    const usernameExistente = await db.query(
+      'SELECT id FROM usuarios WHERE LOWER(username) = LOWER(?)',
+      [username]
+    )
+
+    if (usernameExistente.length > 0) {
+      console.log(`[CADASTRO] Username já em uso: ${username}`)
+      return res.status(409).json({
+        success: false,
+        message: 'Este nome de usuário já está em uso'
       })
     }
 
@@ -88,8 +113,8 @@ router.post('/cadastro', cadastroLimiter, [
     // Insere o novo usuário no banco
     console.log('[CADASTRO] Inserindo usuário no banco de dados...')
     const resultado = await db.query(
-      'INSERT INTO usuarios (nome, email, senha, telefone) VALUES (?, ?, ?, ?)',
-      [nome, email, senhaHash, telefone || null]
+      'INSERT INTO usuarios (nome, username, email, senha, telefone) VALUES (?, ?, ?, ?, ?)',
+      [nome, username.toLowerCase(), email, senhaHash, telefone || null]
     )
 
     console.log(`[CADASTRO] Usuário inserido com ID: ${resultado.lastID}`)
@@ -99,13 +124,14 @@ router.post('/cadastro', cadastroLimiter, [
       { 
         id: resultado.lastID, 
         email: email,
+        username: username.toLowerCase(),
         nome: nome 
       },
       JWT_SECRET,
       { expiresIn: '7d' }
     )
 
-    console.log(`✅ [CADASTRO] Cadastro concluído com sucesso - Usuário: ${email}, ID: ${resultado.lastID}`)
+    console.log(`✅ [CADASTRO] Cadastro concluído com sucesso - Username: ${username}, Email: ${email}, ID: ${resultado.lastID}`)
 
     res.status(201).json({
       success: true,
@@ -115,6 +141,7 @@ router.post('/cadastro', cadastroLimiter, [
         usuario: {
           id: resultado.lastID,
           nome,
+          username: username.toLowerCase(),
           email
         }
       }
@@ -164,7 +191,7 @@ router.post('/login', loginLimiter, [
 
     // Busca o usuário no banco
     const usuarios = await db.query(
-      'SELECT id, nome, email, senha, criado_em FROM usuarios WHERE email = ?',
+      'SELECT id, nome, username, email, senha, criado_em FROM usuarios WHERE email = ?',
       [email]
     )
 
@@ -195,6 +222,7 @@ router.post('/login', loginLimiter, [
       { 
         id: usuario.id, 
         email: usuario.email,
+        username: usuario.username,
         nome: usuario.nome 
       },
       JWT_SECRET,
@@ -211,6 +239,7 @@ router.post('/login', loginLimiter, [
         usuario: {
           id: usuario.id,
           nome: usuario.nome,
+          username: usuario.username,
           email: usuario.email
         }
       }

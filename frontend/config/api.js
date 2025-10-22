@@ -12,6 +12,17 @@ export const endpoints = {
   comentarios: (id) => `${API_URL}/api/postagens/${id}/comentarios`,
   perfil: `${API_URL}/api/auth/perfil`,
   notificacoes: `${API_URL}/api/notificacoes`,
+  
+  // Endpoints de amizade
+  amigos: {
+    enviar: `${API_URL}/api/amigos/enviar`,
+    aceitar: `${API_URL}/api/amigos/aceitar`,
+    recusar: `${API_URL}/api/amigos/recusar`,
+    lista: (id) => `${API_URL}/api/amigos/lista/${id}`,
+    pedidos: `${API_URL}/api/amigos/pedidos`,
+    remover: (id) => `${API_URL}/api/amigos/remover/${id}`,
+    status: (id) => `${API_URL}/api/amigos/status/${id}`,
+  }
 };
 
 export default API_URL;

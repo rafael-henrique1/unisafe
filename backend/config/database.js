@@ -58,6 +58,7 @@ async function createTables() {
       CREATE TABLE IF NOT EXISTS usuarios (
         id INT AUTO_INCREMENT PRIMARY KEY,
         nome VARCHAR(255) NOT NULL,
+        username VARCHAR(30) UNIQUE,
         email VARCHAR(255) UNIQUE NOT NULL,
         senha VARCHAR(255) NOT NULL,
         telefone VARCHAR(20),
@@ -65,7 +66,8 @@ async function createTables() {
         avatar_url TEXT,
         criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         ativo BOOLEAN DEFAULT TRUE,
-        INDEX idx_email (email)
+        INDEX idx_email (email),
+        INDEX idx_username (username)
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
     `)
 
@@ -175,6 +177,24 @@ async function createTables() {
       }
     }
 
+    // Tabela de amigos (sistema de amizade)
+    await pool.execute(`
+      CREATE TABLE IF NOT EXISTS amigos (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        usuario_id INT NOT NULL,
+        amigo_id INT NOT NULL,
+        status ENUM('pendente', 'aceito', 'recusado') DEFAULT 'pendente',
+        criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE,
+        FOREIGN KEY (amigo_id) REFERENCES usuarios(id) ON DELETE CASCADE,
+        UNIQUE KEY unique_amizade (usuario_id, amigo_id),
+        INDEX idx_usuario (usuario_id),
+        INDEX idx_amigo (amigo_id),
+        INDEX idx_status (status)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    `)
+    console.log('✅ Tabela de amigos criada/verificada')
+
     // Migração: Adiciona coluna foto_perfil e torna senha NULL (Google OAuth)
     try {
       // Verifica se a coluna foto_perfil já existe
@@ -193,6 +213,25 @@ async function createTables() {
           ADD COLUMN foto_perfil TEXT NULL AFTER bio
         `)
         console.log('✅ Coluna foto_perfil adicionada à tabela usuarios')
+      }
+
+      // Verifica se a coluna username já existe
+      const [usernameColumns] = await pool.execute(`
+        SELECT COLUMN_NAME 
+        FROM INFORMATION_SCHEMA.COLUMNS 
+        WHERE TABLE_SCHEMA = DATABASE() 
+        AND TABLE_NAME = 'usuarios' 
+        AND COLUMN_NAME = 'username'
+      `)
+      
+      if (usernameColumns.length === 0) {
+        // Adiciona coluna username
+        await pool.execute(`
+          ALTER TABLE usuarios 
+          ADD COLUMN username VARCHAR(30) UNIQUE NULL AFTER nome,
+          ADD INDEX idx_username (username)
+        `)
+        console.log('✅ Coluna username adicionada à tabela usuarios')
       }
 
       // Verifica se a coluna senha permite NULL

@@ -55,6 +55,72 @@ router.get('/verificar-email', async (req, res) => {
 })
 
 /**
+ * GET /api/usuarios/verificar-username
+ * Verifica se um nome de usuário já está em uso
+ */
+router.get('/verificar-username', async (req, res) => {
+  try {
+    const { username } = req.query
+
+    if (!username) {
+      return res.status(400).json({
+        success: false,
+        message: 'Nome de usuário é obrigatório'
+      })
+    }
+
+    // Validação de formato do username
+    const usernameRegex = /^[a-z0-9._]+$/
+    if (!usernameRegex.test(username.toLowerCase())) {
+      return res.json({
+        success: true,
+        existe: false,
+        valido: false,
+        mensagem: 'Use apenas letras, números, pontos e sublinhados'
+      })
+    }
+
+    if (username.length > 30) {
+      return res.json({
+        success: true,
+        existe: false,
+        valido: false,
+        mensagem: 'Máximo de 30 caracteres'
+      })
+    }
+
+    if (username.length < 3) {
+      return res.json({
+        success: true,
+        existe: false,
+        valido: false,
+        mensagem: 'Mínimo de 3 caracteres'
+      })
+    }
+
+    // Verifica se o username existe no banco (case insensitive)
+    const resultado = await db.query(
+      'SELECT id FROM usuarios WHERE LOWER(username) = LOWER(?) LIMIT 1',
+      [username]
+    )
+
+    res.json({
+      success: true,
+      existe: resultado.length > 0,
+      valido: true,
+      disponivel: resultado.length === 0
+    })
+
+  } catch (error) {
+    console.error('❌ [ERRO VERIFICAR USERNAME]', error.message)
+    res.status(500).json({
+      success: false,
+      message: 'Erro ao verificar nome de usuário'
+    })
+  }
+})
+
+/**
  * GET /api/usuarios
  * Lista usuários da plataforma (para funcionalidades futuras)
  */
@@ -194,6 +260,13 @@ router.put('/:id', verificarAuth, [
     .trim()
     .isLength({ min: 1, max: 50 })
     .withMessage('Nome deve ter entre 1 e 50 caracteres'),
+  body('username')
+    .optional()
+    .trim()
+    .isLength({ min: 3, max: 30 })
+    .withMessage('Nome de usuário deve ter entre 3 e 30 caracteres')
+    .matches(/^[a-z0-9._]+$/)
+    .withMessage('Nome de usuário pode conter apenas letras minúsculas, números, pontos e sublinhados'),
   body('bio')
     .optional({ checkFalsy: true })
     .trim()
@@ -229,7 +302,7 @@ router.put('/:id', verificarAuth, [
     console.log('📝 [DEBUG] Body recebido:', req.body)
     
     const { id } = req.params
-    const { nome, bio, avatar_url, telefone, senha, senhaAtual } = req.body
+    const { nome, username, bio, avatar_url, telefone, senha, senhaAtual } = req.body
 
     // Verifica se é o próprio usuário
     if (parseInt(id) !== req.usuario.id) {
@@ -250,6 +323,21 @@ router.put('/:id', verificarAuth, [
       })
     }
 
+    // Se está tentando atualizar o username, verifica se já está em uso
+    if (username !== undefined) {
+      const usernameExistente = await db.query(
+        'SELECT id FROM usuarios WHERE LOWER(username) = LOWER(?) AND id != ?',
+        [username.trim().toLowerCase(), id]
+      )
+
+      if (usernameExistente.length > 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'Nome de usuário já está em uso'
+        })
+      }
+    }
+
     // Monta a query de atualização
     const campos = []
     const valores = []
@@ -257,6 +345,11 @@ router.put('/:id', verificarAuth, [
     if (nome !== undefined) {
       campos.push('nome = ?')
       valores.push(nome.trim())
+    }
+
+    if (username !== undefined) {
+      campos.push('username = ?')
+      valores.push(username.trim().toLowerCase())
     }
 
     if (bio !== undefined) {
@@ -324,7 +417,7 @@ router.put('/:id', verificarAuth, [
 
     // Retorna os dados atualizados
     const usuarioAtualizado = await db.query(`
-      SELECT id, nome, email, bio, avatar_url, telefone
+      SELECT id, nome, email, username, bio, avatar_url, telefone
       FROM usuarios 
       WHERE id = ?
     `, [id])

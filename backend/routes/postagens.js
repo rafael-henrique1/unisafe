@@ -434,7 +434,8 @@ router.post('/:id/comentarios', verificarAuth, [
         c.id,
         c.conteudo,
         c.criado_em,
-        u.nome as usuario_nome
+        u.nome as usuario_nome,
+        u.username as usuario_username
       FROM comentarios c
       LEFT JOIN usuarios u ON c.usuario_id = u.id
       WHERE c.id = ?
@@ -454,6 +455,7 @@ router.post('/:id/comentarios', verificarAuth, [
       usuarioId,
       autorPostagemId,
       nomeUsuario: req.usuario.nome,
+      username: req.usuario.username,
       conteudo: novoComentario[0].conteudo
     })
     
@@ -466,6 +468,7 @@ router.post('/:id/comentarios', verificarAuth, [
         id: novoComentario[0].id,
         conteudo: novoComentario[0].conteudo,
         usuario: novoComentario[0].usuario_nome,
+        username: novoComentario[0].usuario_username,
         data: formatarData(novoComentario[0].criado_em)
       }
     })
@@ -514,7 +517,8 @@ router.get('/:id/comentarios', async (req, res) => {
         c.id,
         c.conteudo,
         c.criado_em,
-        u.nome as usuario_nome
+        u.nome as usuario_nome,
+        u.username as usuario_username
       FROM comentarios c
       LEFT JOIN usuarios u ON c.usuario_id = u.id
       WHERE c.postagem_id = ${id_int} AND c.ativo = 1
@@ -538,6 +542,7 @@ router.get('/:id/comentarios', async (req, res) => {
         id: c.id,
         conteudo: c.conteudo,
         usuario: c.usuario_nome,
+        username: c.usuario_username,
         data: formatarData(c.criado_em)
       })),
       pagination: {

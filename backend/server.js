@@ -28,6 +28,7 @@ const authRoutes = require('./routes/auth')
 const authGoogleRoutes = require('./routes/authGoogle') // ← Rotas Google OAuth
 const postagensRoutes = require('./routes/postagens')
 const usuariosRoutes = require('./routes/usuarios')
+const amigosRoutes = require('./routes/amigos') // ← Rotas de amizade
 
 // Cria a instância do Express
 const app = express()
@@ -67,6 +68,9 @@ const io = new Server(server, {
 app.use(express.json({ limit: '10mb' })) // Parser JSON para requisições
 app.use(express.urlencoded({ extended: true })) // Parser URL-encoded
 
+// Torna Socket.IO disponível para todas as rotas
+app.set('io', io)
+
 // Inicializa Passport.js para autenticação OAuth
 app.use(passport.initialize())
 
@@ -85,7 +89,8 @@ app.get('/', (req, res) => {
     endpoints: {
       auth: '/api/auth',
       postagens: '/api/postagens',
-      usuarios: '/api/usuarios'
+      usuarios: '/api/usuarios',
+      amigos: '/api/amigos'
     }
   })
 })
@@ -104,6 +109,7 @@ app.use('/api/auth', authRoutes) // Rotas de autenticação tradicional
 app.use('/api/auth', authGoogleRoutes) // Rotas de autenticação Google OAuth
 app.use('/api/postagens', postagensRoutes) // Rotas de postagens
 app.use('/api/usuarios', usuariosRoutes) // Rotas de usuários
+app.use('/api/amigos', amigosRoutes) // Rotas de amizade
 
 // Rota para login (compatibilidade)
 app.use('/api/login', authRoutes)

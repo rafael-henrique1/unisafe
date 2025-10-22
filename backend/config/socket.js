@@ -288,13 +288,14 @@ async function emitirNovaCurtida(io, curtida) {
  */
 async function emitirNovoComentario(io, comentario) {
   try {
-    const { comentarioId, postagemId, usuarioId, autorPostagemId, nomeUsuario, conteudo } = comentario
+    const { comentarioId, postagemId, usuarioId, autorPostagemId, nomeUsuario, username, conteudo } = comentario
     
     console.log(`\n[SOCKET] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`)
     console.log(`[SOCKET] 💬 NOVO COMENTÁRIO`)
     console.log(`[SOCKET] Comentário ID: ${comentarioId}`)
     console.log(`[SOCKET] Postagem ID: ${postagemId}`)
     console.log(`[SOCKET] Quem comentou: ${nomeUsuario} (ID: ${usuarioId})`)
+    console.log(`[SOCKET] Username: @${username || 'sem username'}`)
     console.log(`[SOCKET] Autor da postagem ID: ${autorPostagemId}`)
     console.log(`[SOCKET] Comentário: ${conteudo.substring(0, 50)}...`)
     
@@ -334,6 +335,7 @@ async function emitirNovoComentario(io, comentario) {
       postagemId,
       usuarioId,
       nomeUsuario,
+      username,
       conteudo,
       timestamp: new Date().toISOString()
     })

@@ -197,7 +197,8 @@ router.get('/perfil/:username', async (req, res) => {
         criado_em,
         (SELECT COUNT(*) FROM postagens WHERE usuario_id = usuarios.id AND ativo = 1) as total_postagens,
         (SELECT COUNT(*) FROM curtidas WHERE usuario_id = usuarios.id) as total_curtidas,
-        (SELECT COUNT(*) FROM comentarios WHERE usuario_id = usuarios.id AND ativo = 1) as total_comentarios
+        (SELECT COUNT(*) FROM comentarios WHERE usuario_id = usuarios.id AND ativo = 1) as total_comentarios,
+        (SELECT COUNT(*) FROM amigos WHERE (usuario_id = usuarios.id OR amigo_id = usuarios.id) AND status = 'aceito') as total_amigos
       FROM usuarios 
       WHERE LOWER(username) = LOWER(?) AND ativo = 1
     `, [username])
@@ -223,7 +224,8 @@ router.get('/perfil/:username', async (req, res) => {
         estatisticas: {
           total_postagens: parseInt(usuario.total_postagens || 0),
           total_curtidas: parseInt(usuario.total_curtidas || 0),
-          total_comentarios: parseInt(usuario.total_comentarios || 0)
+          total_comentarios: parseInt(usuario.total_comentarios || 0),
+          total_amigos: parseInt(usuario.total_amigos || 0)
         }
       }
     })
@@ -269,7 +271,8 @@ router.get('/:id', verificarAuth, async (req, res) => {
         criado_em,
         (SELECT COUNT(*) FROM postagens WHERE usuario_id = usuarios.id AND ativo = 1) as total_postagens,
         (SELECT COUNT(*) FROM curtidas WHERE usuario_id = usuarios.id) as total_curtidas,
-        (SELECT COUNT(*) FROM comentarios WHERE usuario_id = usuarios.id AND ativo = 1) as total_comentarios
+        (SELECT COUNT(*) FROM comentarios WHERE usuario_id = usuarios.id AND ativo = 1) as total_comentarios,
+        (SELECT COUNT(*) FROM amigos WHERE (usuario_id = usuarios.id OR amigo_id = usuarios.id) AND status = 'aceito') as total_amigos
       FROM usuarios 
       WHERE id = ? AND ativo = 1
     `, [id])
@@ -298,7 +301,8 @@ router.get('/:id', verificarAuth, async (req, res) => {
         estatisticas: {
           total_postagens: parseInt(usuario.total_postagens || 0),
           total_curtidas: parseInt(usuario.total_curtidas || 0),
-          total_comentarios: parseInt(usuario.total_comentarios || 0)
+          total_comentarios: parseInt(usuario.total_comentarios || 0),
+          total_amigos: parseInt(usuario.total_amigos || 0)
         }
       }
     })

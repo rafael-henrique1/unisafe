@@ -1152,10 +1152,6 @@ export default function Feed() {
                       <span>💬</span>
                       <span>{postagem.comentarios || 0} comentários</span>
                     </button>
-                    <button className="flex items-center space-x-1 hover:text-primary-600 transition-colors">
-                      <span>↗️</span>
-                      <span>Compartilhar</span>
-                    </button>
                   </div>
 
                   {/* Seção de Comentários */}

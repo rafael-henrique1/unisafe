@@ -316,6 +316,7 @@ router.get('/pedidos', verificarAuth, async (req, res) => {
         a.criado_em,
         u.id as usuario_id,
         u.nome,
+        u.username,
         u.email,
         u.foto_perfil,
         u.bio

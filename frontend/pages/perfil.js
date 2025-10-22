@@ -1210,7 +1210,7 @@ export default function Perfil() {
             ) : (
               <div className="space-y-4">
                 {pedidosAmizade.map((pedido) => (
-                  <div key={pedido.solicitacao_id} className="flex items-center justify-between p-4 border rounded-lg">
+                  <div key={pedido.solicitacao_id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 transition">
                     <div className="flex items-center space-x-4">
                       {pedido.foto_perfil ? (
                         <img
@@ -1227,8 +1227,16 @@ export default function Perfil() {
                       )}
                       <div>
                         <h3 className="font-medium text-gray-900">{pedido.nome}</h3>
+                        {pedido.username && (
+                          <button
+                            onClick={() => router.push(`/usuario/${pedido.username}`)}
+                            className="text-sm text-blue-600 hover:text-blue-700 hover:underline transition"
+                          >
+                            @{pedido.username}
+                          </button>
+                        )}
                         {pedido.bio && (
-                          <p className="text-sm text-gray-600 line-clamp-1">{pedido.bio}</p>
+                          <p className="text-sm text-gray-600 line-clamp-1 mt-1">{pedido.bio}</p>
                         )}
                         <p className="text-xs text-gray-500 mt-1">
                           Enviado em {new Date(pedido.criado_em).toLocaleDateString('pt-BR')}

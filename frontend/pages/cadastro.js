@@ -22,6 +22,8 @@ export default function Cadastro() {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [mostrarSenha, setMostrarSenha] = useState(false)
+  const [emailJaCadastrado, setEmailJaCadastrado] = useState(false)
+  const [verificandoEmail, setVerificandoEmail] = useState(false)
   
   const router = useRouter()
 
@@ -78,11 +80,65 @@ export default function Cadastro() {
   }
 
   /**
+   * Verifica se o email já está cadastrado no sistema
+   * @param {string} email - Email a ser verificado
+   */
+  const verificarEmailExistente = async (email) => {
+    // Validação básica antes de verificar
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!email || !emailRegex.test(email) || !validarDominioEmail(email)) {
+      setEmailJaCadastrado(false)
+      return
+    }
+
+    setVerificandoEmail(true)
+    setEmailJaCadastrado(false)
+    
+    try {
+      const response = await fetch(`${endpoints.usuarios}/verificar-email?email=${encodeURIComponent(email)}`)
+      
+      if (response.ok) {
+        const result = await response.json()
+        if (result.existe) {
+          setEmailJaCadastrado(true)
+          setError('Este email já está cadastrado. Use outro email ou faça login.')
+        } else {
+          setEmailJaCadastrado(false)
+          // Limpa erro de email se estava definido
+          if (error.includes('email já está cadastrado')) {
+            setError('')
+          }
+        }
+      }
+    } catch (err) {
+      console.error('Erro ao verificar email:', err)
+      // Não mostra erro ao usuário para não atrapalhar a experiência
+    } finally {
+      setVerificandoEmail(false)
+    }
+  }
+
+  /**
+   * Manipula quando o usuário sai do campo de email (onBlur)
+   */
+  const handleEmailBlur = () => {
+    if (formData.email) {
+      verificarEmailExistente(formData.email)
+    }
+  }
+
+  /**
    * Valida os dados do formulário antes do envio
    * Implementa validações robustas para segurança da comunidade
    * @returns {boolean} - True se válido, false caso contrário
    */
   const validateForm = () => {
+    // Validação de email já cadastrado
+    if (emailJaCadastrado) {
+      setError('Este email já está cadastrado. Use outro email ou faça login.')
+      return false
+    }
+
     // Validação de confirmação de senha
     if (formData.senha !== formData.confirmarSenha) {
       setError('As senhas não coincidem')
@@ -252,19 +308,37 @@ export default function Cadastro() {
                 <label htmlFor="email" className="block text-sm font-medium text-gray-700">
                   Email pessoal *
                 </label>
-                <input
-                  id="email"
-                  name="email"
-                  type="email"
-                  required
-                  value={formData.email}
-                  onChange={handleChange}
-                  className="input-field mt-1"
-                  placeholder="seu.email@gmail.com"
-                />
-                <p className="mt-1 text-xs text-gray-500">
-                  Apenas emails @gmail.com ou @hotmail.com
-                </p>
+                <div className="relative">
+                  <input
+                    id="email"
+                    name="email"
+                    type="email"
+                    required
+                    value={formData.email}
+                    onChange={handleChange}
+                    onBlur={handleEmailBlur}
+                    className={`input-field mt-1 ${emailJaCadastrado ? 'border-red-500' : ''} ${verificandoEmail ? 'pr-10' : ''}`}
+                    placeholder="seu.email@gmail.com"
+                  />
+                  {verificandoEmail && (
+                    <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
+                      <svg className="animate-spin h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                    </div>
+                  )}
+                </div>
+                {emailJaCadastrado && (
+                  <p className="mt-1 text-xs text-red-600">
+                    ⚠️ Este email já está cadastrado
+                  </p>
+                )}
+                {!emailJaCadastrado && !verificandoEmail && (
+                  <p className="mt-1 text-xs text-gray-500">
+                    Apenas emails @gmail.com ou @hotmail.com
+                  </p>
+                )}
               </div>
 
               {/* Campo de telefone */}

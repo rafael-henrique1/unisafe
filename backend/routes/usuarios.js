@@ -20,6 +20,41 @@ const logger = require('../config/logger')
 const router = express.Router()
 
 /**
+ * GET /api/usuarios/verificar-email
+ * Verifica se um email já está cadastrado no sistema
+ */
+router.get('/verificar-email', async (req, res) => {
+  try {
+    const { email } = req.query
+
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email é obrigatório'
+      })
+    }
+
+    // Verifica se o email existe no banco
+    const resultado = await db.query(
+      'SELECT id FROM usuarios WHERE email = ? LIMIT 1',
+      [email]
+    )
+
+    res.json({
+      success: true,
+      existe: resultado.length > 0
+    })
+
+  } catch (error) {
+    console.error('❌ [ERRO VERIFICAR EMAIL]', error.message)
+    res.status(500).json({
+      success: false,
+      message: 'Erro ao verificar email'
+    })
+  }
+})
+
+/**
  * GET /api/usuarios
  * Lista usuários da plataforma (para funcionalidades futuras)
  */

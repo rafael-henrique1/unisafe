@@ -33,6 +33,16 @@ export default function Login() {
   }
 
   /**
+   * Valida se o email é Gmail ou Hotmail
+   * @param {string} email - Email a ser validado
+   * @returns {boolean} - True se válido, false caso contrário
+   */
+  const validarDominioEmail = (email) => {
+    const emailLower = email.toLowerCase()
+    return emailLower.endsWith('@gmail.com') || emailLower.endsWith('@hotmail.com')
+  }
+
+  /**
    * Processa o envio do formulário de login
    * @param {Event} e - Evento de submit do formulário
    */
@@ -40,6 +50,13 @@ export default function Login() {
     e.preventDefault()
     setLoading(true)
     setError('')
+
+    // Validação de domínio de email
+    if (!validarDominioEmail(formData.email)) {
+      setError('Apenas emails @gmail.com ou @hotmail.com são permitidos')
+      setLoading(false)
+      return
+    }
 
     try {
       // Aqui será feita a chamada para a API de login
@@ -125,6 +142,9 @@ export default function Login() {
                   className="input-field mt-1"
                   placeholder="seu.email@gmail.com"
                 />
+                <p className="mt-1 text-xs text-gray-500">
+                  Apenas emails @gmail.com ou @hotmail.com
+                </p>
               </div>
 
               {/* Campo de senha */}

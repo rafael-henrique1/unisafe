@@ -28,7 +28,14 @@ router.post('/cadastro', cadastroLimiter, [
     .isLength({ min: 2 }).withMessage('Nome deve ter pelo menos 2 caracteres')
     .matches(/^[a-zA-Z\s\u00C0-\u017F]+$/).withMessage('Nome deve conter apenas letras e espaços'),
   body('email').isEmail().withMessage('Email inválido')
-    .normalizeEmail(),
+    .normalizeEmail()
+    .custom((value) => {
+      const emailLower = value.toLowerCase()
+      if (!emailLower.endsWith('@gmail.com') && !emailLower.endsWith('@hotmail.com')) {
+        throw new Error('Apenas emails @gmail.com ou @hotmail.com são permitidos')
+      }
+      return true
+    }),
   body('senha').isLength({ min: 8 }).withMessage('Senha deve ter pelo menos 8 caracteres')
     .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/).withMessage('Senha deve conter pelo menos: 1 letra maiúscula, 1 minúscula e 1 número'),
   body('telefone').optional().matches(/^(\(\d{2}\)\s?)?\d{4,5}-?\d{4}$|^\d{10,11}$/).withMessage('Telefone inválido')
@@ -126,7 +133,14 @@ router.post('/cadastro', cadastroLimiter, [
  * Autentica um usuário no sistema
  */
 router.post('/login', loginLimiter, [
-  body('email').isEmail().withMessage('Email inválido'),
+  body('email').isEmail().withMessage('Email inválido')
+    .custom((value) => {
+      const emailLower = value.toLowerCase()
+      if (!emailLower.endsWith('@gmail.com') && !emailLower.endsWith('@hotmail.com')) {
+        throw new Error('Apenas emails @gmail.com ou @hotmail.com são permitidos')
+      }
+      return true
+    }),
   body('senha').notEmpty().withMessage('Senha é obrigatória')
 ], async (req, res) => {
   try {

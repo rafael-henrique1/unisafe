@@ -68,6 +68,16 @@ export default function Cadastro() {
   }
 
   /**
+   * Valida se o email é Gmail ou Hotmail
+   * @param {string} email - Email a ser validado
+   * @returns {boolean} - True se válido, false caso contrário
+   */
+  const validarDominioEmail = (email) => {
+    const emailLower = email.toLowerCase()
+    return emailLower.endsWith('@gmail.com') || emailLower.endsWith('@hotmail.com')
+  }
+
+  /**
    * Valida os dados do formulário antes do envio
    * Implementa validações robustas para segurança da comunidade
    * @returns {boolean} - True se válido, false caso contrário
@@ -90,6 +100,12 @@ export default function Cadastro() {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
     if (!emailRegex.test(formData.email)) {
       setError('Por favor, insira um email válido')
+      return false
+    }
+
+    // Validação de domínio de email (apenas Gmail ou Hotmail)
+    if (!validarDominioEmail(formData.email)) {
+      setError('Apenas emails @gmail.com ou @hotmail.com são permitidos')
       return false
     }
 
@@ -247,7 +263,7 @@ export default function Cadastro() {
                   placeholder="seu.email@gmail.com"
                 />
                 <p className="mt-1 text-xs text-gray-500">
-                  Use seu email pessoal para receber notificações da comunidade
+                  Apenas emails @gmail.com ou @hotmail.com
                 </p>
               </div>
 

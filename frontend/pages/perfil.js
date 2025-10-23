@@ -692,75 +692,107 @@ export default function Perfil() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gradient-to-br from-neutral-50 via-primary-50/30 to-neutral-100">
       <Head>
         <title>Meu Perfil - UniSafe</title>
         <meta name="description" content="Gerencie suas informações pessoais no UniSafe" />
       </Head>
 
-      {/* Header */}
-      <div className="bg-white shadow-sm border-b">
-        <div className="max-w-4xl mx-auto px-4 py-4">
+      {/* Header com gradiente */}
+      <div className="bg-white/80 backdrop-blur-md shadow-soft border-b border-neutral-200">
+        <div className="max-w-6xl mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <button
-                onClick={() => router.push('/feed')}
-                className="text-gray-600 hover:text-gray-900 flex items-center space-x-2"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            <button
+              onClick={() => router.push('/feed')}
+              className="flex items-center gap-2 px-4 py-2 text-neutral-600 hover:text-primary-600 hover:bg-primary-50 rounded-xl transition-all font-medium"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
+              <span>Voltar ao Feed</span>
+            </button>
+            
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-gradient-primary rounded-xl flex items-center justify-center shadow-soft">
+                <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                 </svg>
-                <span>Voltar ao Feed</span>
-              </button>
-            </div>
-            <div className="flex items-center space-x-4">
-              <h1 className="text-xl font-semibold text-gray-900">Meu Perfil</h1>
+              </div>
+              <h1 className="text-2xl font-bold bg-gradient-primary bg-clip-text text-transparent">
+                Meu Perfil
+              </h1>
             </div>
           </div>
         </div>
       </div>
 
       {/* Conteúdo Principal */}
-      <div className="max-w-4xl mx-auto px-4 py-8">
-        {/* Abas de Navegação */}
-        <div className="bg-white rounded-lg shadow-sm border mb-6">
-          <div className="flex border-b">
+      <div className="max-w-6xl mx-auto px-4 py-8">
+        {/* Abas de Navegação modernas */}
+        <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-medium border border-neutral-200 mb-8 overflow-hidden">
+          <div className="flex">
             <button
               onClick={() => setAbaAtiva('perfil')}
-              className={`flex-1 px-6 py-4 text-sm font-medium transition-colors ${
+              className={`flex-1 px-6 py-5 text-sm font-semibold transition-all relative ${
                 abaAtiva === 'perfil'
-                  ? 'text-blue-600 border-b-2 border-blue-600'
-                  : 'text-gray-600 hover:text-gray-900'
+                  ? 'text-primary-700 bg-primary-50'
+                  : 'text-neutral-600 hover:text-primary-600 hover:bg-neutral-50'
               }`}
             >
-              📝 Meu Perfil
+              <div className="flex items-center justify-center gap-2">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                </svg>
+                <span>Meu Perfil</span>
+              </div>
+              {abaAtiva === 'perfil' && (
+                <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-primary"></div>
+              )}
             </button>
+            
             <button
               onClick={() => setAbaAtiva('amigos')}
-              className={`flex-1 px-6 py-4 text-sm font-medium transition-colors relative ${
+              className={`flex-1 px-6 py-5 text-sm font-semibold transition-all relative ${
                 abaAtiva === 'amigos'
-                  ? 'text-blue-600 border-b-2 border-blue-600'
-                  : 'text-gray-600 hover:text-gray-900'
+                  ? 'text-accent-700 bg-accent-50'
+                  : 'text-neutral-600 hover:text-accent-600 hover:bg-neutral-50'
               }`}
             >
-              👥 Meus Amigos
-              <span className="ml-2 bg-blue-100 text-blue-600 px-2 py-1 rounded-full text-xs">
-                {amigos.length}
-              </span>
+              <div className="flex items-center justify-center gap-2">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                </svg>
+                <span>Meus Amigos</span>
+                <span className="px-2.5 py-0.5 bg-accent-500 text-white text-xs font-bold rounded-full shadow-sm">
+                  {amigos.length}
+                </span>
+              </div>
+              {abaAtiva === 'amigos' && (
+                <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-accent"></div>
+              )}
             </button>
+            
             <button
               onClick={() => setAbaAtiva('pedidos')}
-              className={`flex-1 px-6 py-4 text-sm font-medium transition-colors relative ${
+              className={`flex-1 px-6 py-5 text-sm font-semibold transition-all relative ${
                 abaAtiva === 'pedidos'
-                  ? 'text-blue-600 border-b-2 border-blue-600'
-                  : 'text-gray-600 hover:text-gray-900'
+                  ? 'text-warning-700 bg-warning-50'
+                  : 'text-neutral-600 hover:text-warning-600 hover:bg-neutral-50'
               }`}
             >
-              📬 Solicitações
-              {pedidosAmizade.length > 0 && (
-                <span className="ml-2 bg-red-100 text-red-600 px-2 py-1 rounded-full text-xs">
-                  {pedidosAmizade.length}
-                </span>
+              <div className="flex items-center justify-center gap-2">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 19v-8.93a2 2 0 01.89-1.664l7-4.666a2 2 0 012.22 0l7 4.666A2 2 0 0121 10.07V19M3 19a2 2 0 002 2h14a2 2 0 002-2M3 19l6.75-4.5M21 19l-6.75-4.5M3 10l6.75 4.5M21 10l-6.75 4.5m0 0l-1.14.76a2 2 0 01-2.22 0l-1.14-.76" />
+                </svg>
+                <span>Solicitações</span>
+                {pedidosAmizade.length > 0 && (
+                  <span className="px-2.5 py-0.5 bg-danger-500 text-white text-xs font-bold rounded-full shadow-sm animate-pulse">
+                    {pedidosAmizade.length}
+                  </span>
+                )}
+              </div>
+              {abaAtiva === 'pedidos' && (
+                <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-warning-500 to-warning-600"></div>
               )}
             </button>
           </div>
@@ -768,14 +800,20 @@ export default function Perfil() {
 
         {/* Mensagens */}
         {mensagem && (
-          <div className="mb-6 bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg">
-            {mensagem}
+          <div className="mb-6 bg-accent-50 border-l-4 border-accent-500 text-accent-800 px-5 py-4 rounded-xl flex items-start gap-3 shadow-soft animate-in">
+            <svg className="w-5 h-5 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"/>
+            </svg>
+            <span className="flex-1 text-sm font-medium">{mensagem}</span>
           </div>
         )}
         
         {erro && (
-          <div className="mb-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
-            {erro}
+          <div className="mb-6 bg-danger-50 border-l-4 border-danger-500 text-danger-800 px-5 py-4 rounded-xl flex items-start gap-3 shadow-soft">
+            <svg className="w-5 h-5 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd"/>
+            </svg>
+            <span className="flex-1 text-sm font-medium">{erro}</span>
           </div>
         )}
 
@@ -784,48 +822,96 @@ export default function Perfil() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Coluna Esquerda - Informações Gerais */}
           <div className="lg:col-span-1">
-            <div className="bg-white rounded-lg shadow-sm border p-6">
+            <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-medium border border-neutral-200 p-6">
               {/* Avatar */}
               <div className="text-center mb-6">
-                <div className="w-24 h-24 mx-auto mb-4">
+                <div className="w-32 h-32 mx-auto mb-4 relative group">
                   {usuario?.avatar_url && !avatarError ? (
                     <img
                       src={usuario.avatar_url}
                       alt="Avatar"
-                      className="w-full h-full rounded-full object-cover border-4 border-gray-200"
+                      className="w-full h-full rounded-full object-cover border-4 border-white shadow-medium ring-2 ring-primary-200 group-hover:ring-primary-400 transition-all"
                       onError={() => setAvatarError(true)}
                       onLoad={() => setAvatarError(false)}
                     />
                   ) : (
-                    <div className="w-full h-full rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-2xl font-bold">
+                    <div className="w-full h-full rounded-full bg-gradient-primary flex items-center justify-center text-white text-4xl font-bold shadow-medium ring-2 ring-primary-200 group-hover:ring-primary-400 transition-all">
                       {usuario?.nome?.charAt(0)?.toUpperCase() || 'U'}
                     </div>
                   )}
+                  {/* Badge de verificação (decorativo) */}
+                  <div className="absolute -bottom-1 -right-1 w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-soft">
+                    <div className="w-8 h-8 bg-gradient-accent rounded-full flex items-center justify-center">
+                      <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"/>
+                      </svg>
+                    </div>
+                  </div>
                 </div>
-                <h2 className="text-xl font-semibold text-gray-900">{usuario?.nome}</h2>
-                <p className="text-gray-600">{usuario?.email}</p>
+                
+                {/* Info do usuário */}
+                <h2 className="text-2xl font-bold text-neutral-800">{usuario?.nome}</h2>
+                <p className="text-sm text-neutral-600">{usuario?.email}</p>
                 {usuario?.username && (
-                  <p className="text-blue-600 font-medium">@{usuario.username}</p>
+                  <div className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-primary-50 rounded-lg mt-2">
+                    <svg className="w-4 h-4 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207" />
+                    </svg>
+                    <span className="text-primary-700 font-semibold text-sm">@{usuario.username}</span>
+                  </div>
                 )}
               </div>
 
-              {/* Estatísticas */}
-              <div className="space-y-3">
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Membro desde:</span>
-                  <span className="text-gray-900">{formatarDataMembro(usuario?.membro_desde)}</span>
+              {/* Estatísticas com ícones */}
+              <div className="space-y-3 pt-6 border-t border-neutral-200">
+                <h3 className="text-xs font-bold text-neutral-500 uppercase tracking-wide mb-4">Estatísticas</h3>
+                
+                <div className="flex items-center justify-between p-3 bg-neutral-50 rounded-xl hover:bg-neutral-100 transition-colors">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-primary-100 rounded-lg flex items-center justify-center">
+                      <svg className="w-5 h-5 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      </svg>
+                    </div>
+                    <span className="text-sm font-medium text-neutral-700">Membro desde</span>
+                  </div>
+                  <span className="text-sm font-bold text-neutral-800">{formatarDataMembro(usuario?.membro_desde)}</span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Postagens:</span>
-                  <span className="text-gray-900">{usuario?.estatisticas?.total_postagens || 0}</span>
+                
+                <div className="flex items-center justify-between p-3 bg-neutral-50 rounded-xl hover:bg-neutral-100 transition-colors">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-accent-100 rounded-lg flex items-center justify-center">
+                      <svg className="w-5 h-5 text-accent-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" />
+                      </svg>
+                    </div>
+                    <span className="text-sm font-medium text-neutral-700">Postagens</span>
+                  </div>
+                  <span className="px-3 py-1 bg-accent-500 text-white text-sm font-bold rounded-lg shadow-sm">{usuario?.estatisticas?.total_postagens || 0}</span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Curtidas:</span>
-                  <span className="text-gray-900">{usuario?.estatisticas?.total_curtidas || 0}</span>
+                
+                <div className="flex items-center justify-between p-3 bg-neutral-50 rounded-xl hover:bg-neutral-100 transition-colors">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-danger-100 rounded-lg flex items-center justify-center">
+                      <svg className="w-5 h-5 text-danger-600" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clipRule="evenodd"/>
+                      </svg>
+                    </div>
+                    <span className="text-sm font-medium text-neutral-700">Curtidas</span>
+                  </div>
+                  <span className="px-3 py-1 bg-danger-500 text-white text-sm font-bold rounded-lg shadow-sm">{usuario?.estatisticas?.total_curtidas || 0}</span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Comentários:</span>
-                  <span className="text-gray-900">{usuario?.estatisticas?.total_comentarios || 0}</span>
+                
+                <div className="flex items-center justify-between p-3 bg-neutral-50 rounded-xl hover:bg-neutral-100 transition-colors">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-warning-100 rounded-lg flex items-center justify-center">
+                      <svg className="w-5 h-5 text-warning-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                      </svg>
+                    </div>
+                    <span className="text-sm font-medium text-neutral-700">Comentários</span>
+                  </div>
+                  <span className="px-3 py-1 bg-warning-500 text-white text-sm font-bold rounded-lg shadow-sm">{usuario?.estatisticas?.total_comentarios || 0}</span>
                 </div>
               </div>
             </div>
@@ -834,13 +920,20 @@ export default function Perfil() {
           {/* Coluna Direita - Formulários */}
           <div className="lg:col-span-2 space-y-6">
             {/* Formulário de Perfil */}
-            <div className="bg-white rounded-lg shadow-sm border p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Informações Pessoais</h3>
+            <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-medium border border-neutral-200 p-6">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-10 h-10 bg-gradient-primary rounded-xl flex items-center justify-center">
+                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                  </svg>
+                </div>
+                <h3 className="text-xl font-bold text-neutral-800">Informações Pessoais</h3>
+              </div>
               
-              <form onSubmit={salvarPerfil} className="space-y-4">
+              <form onSubmit={salvarPerfil} className="space-y-5">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Nome *
+                  <label className="block text-sm font-semibold text-neutral-700 mb-2">
+                    Nome Completo *
                   </label>
                   <input
                     type="text"
@@ -848,14 +941,14 @@ export default function Perfil() {
                     maxLength={50}
                     value={formData.nome}
                     onChange={(e) => setFormData(prev => ({ ...prev, nome: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-4 py-3 border-2 border-neutral-200 rounded-xl focus:border-primary-500 focus:ring-4 focus:ring-primary-100 transition-all outline-none text-neutral-800"
                     placeholder="Seu nome completo"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Nome de Usuário {!usuario?.username && <span className="text-red-600">*</span>}
+                  <label className="block text-sm font-semibold text-neutral-700 mb-2">
+                    Nome de Usuário {!usuario?.username && <span className="text-danger-600">*</span>}
                   </label>
                   
                   {!editandoUsername ? (

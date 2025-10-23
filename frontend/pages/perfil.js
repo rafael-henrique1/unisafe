@@ -1247,18 +1247,42 @@ export default function Perfil() {
                 {amigos.map((amigo) => (
                   <div key={amigo.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 transition">
                     <div className="flex items-center space-x-4">
-                      {amigo.foto_perfil ? (
-                        <img
-                          src={amigo.foto_perfil}
-                          alt={amigo.nome}
-                          className="w-12 h-12 rounded-full object-cover"
-                        />
+                      {/* Avatar - Clicável para ir ao perfil */}
+                      {amigo.username ? (
+                        <button
+                          onClick={() => router.push(`/usuario/${amigo.username}`)}
+                          className="flex-shrink-0 transition-transform hover:scale-110"
+                        >
+                          {amigo.foto_perfil ? (
+                            <img
+                              src={amigo.foto_perfil}
+                              alt={amigo.nome}
+                              className="w-12 h-12 rounded-full object-cover cursor-pointer"
+                            />
+                          ) : (
+                            <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center cursor-pointer">
+                              <span className="text-blue-600 font-semibold text-lg">
+                                {amigo.nome.charAt(0).toUpperCase()}
+                              </span>
+                            </div>
+                          )}
+                        </button>
                       ) : (
-                        <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center">
-                          <span className="text-blue-600 font-semibold text-lg">
-                            {amigo.nome.charAt(0).toUpperCase()}
-                          </span>
-                        </div>
+                        <>
+                          {amigo.foto_perfil ? (
+                            <img
+                              src={amigo.foto_perfil}
+                              alt={amigo.nome}
+                              className="w-12 h-12 rounded-full object-cover"
+                            />
+                          ) : (
+                            <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center">
+                              <span className="text-blue-600 font-semibold text-lg">
+                                {amigo.nome.charAt(0).toUpperCase()}
+                              </span>
+                            </div>
+                          )}
+                        </>
                       )}
                       <div>
                         <h3 className="font-medium text-gray-900">{amigo.nome}</h3>
@@ -1312,18 +1336,42 @@ export default function Perfil() {
                 {pedidosAmizade.map((pedido) => (
                   <div key={pedido.solicitacao_id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 transition">
                     <div className="flex items-center space-x-4">
-                      {pedido.foto_perfil ? (
-                        <img
-                          src={pedido.foto_perfil}
-                          alt={pedido.nome}
-                          className="w-12 h-12 rounded-full object-cover"
-                        />
+                      {/* Avatar - Clicável para ir ao perfil */}
+                      {pedido.username ? (
+                        <button
+                          onClick={() => router.push(`/usuario/${pedido.username}`)}
+                          className="flex-shrink-0 transition-transform hover:scale-110"
+                        >
+                          {pedido.foto_perfil ? (
+                            <img
+                              src={pedido.foto_perfil}
+                              alt={pedido.nome}
+                              className="w-12 h-12 rounded-full object-cover cursor-pointer"
+                            />
+                          ) : (
+                            <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center cursor-pointer">
+                              <span className="text-blue-600 font-semibold text-lg">
+                                {pedido.nome.charAt(0).toUpperCase()}
+                              </span>
+                            </div>
+                          )}
+                        </button>
                       ) : (
-                        <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center">
-                          <span className="text-blue-600 font-semibold text-lg">
-                            {pedido.nome.charAt(0).toUpperCase()}
-                          </span>
-                        </div>
+                        <>
+                          {pedido.foto_perfil ? (
+                            <img
+                              src={pedido.foto_perfil}
+                              alt={pedido.nome}
+                              className="w-12 h-12 rounded-full object-cover"
+                            />
+                          ) : (
+                            <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center">
+                              <span className="text-blue-600 font-semibold text-lg">
+                                {pedido.nome.charAt(0).toUpperCase()}
+                              </span>
+                            </div>
+                          )}
+                        </>
                       )}
                       <div>
                         <h3 className="font-medium text-gray-900">{pedido.nome}</h3>

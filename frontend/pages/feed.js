@@ -1517,15 +1517,31 @@ export default function Feed() {
                     {/* Header da postagem */}
                     <div className="flex items-start justify-between mb-4">
                       <div className="flex items-center gap-3 flex-1 min-w-0">
-                        {/* Avatar */}
-                        <div className={`w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-lg flex-shrink-0 shadow-soft ${
-                          postagem.tipo === 'emergencia' ? 'bg-gradient-to-br from-danger-500 to-danger-600' :
-                          postagem.tipo === 'alerta' ? 'bg-gradient-to-br from-warning-500 to-warning-600' :
-                          postagem.tipo === 'informacao' ? 'bg-gradient-to-br from-accent-500 to-accent-600' :
-                          'bg-gradient-to-br from-primary-500 to-primary-600'
-                        }`}>
-                          {postagem.usuario ? postagem.usuario.charAt(0).toUpperCase() : 'U'}
-                        </div>
+                        {/* Avatar - Clicável para ir ao perfil */}
+                        {postagem.username ? (
+                          <Link 
+                            href={`/usuario/@${postagem.username}`}
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <div className={`w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-lg flex-shrink-0 shadow-soft cursor-pointer transition-all hover:scale-110 hover:shadow-md ${
+                              postagem.tipo === 'emergencia' ? 'bg-gradient-to-br from-danger-500 to-danger-600' :
+                              postagem.tipo === 'alerta' ? 'bg-gradient-to-br from-warning-500 to-warning-600' :
+                              postagem.tipo === 'informacao' ? 'bg-gradient-to-br from-accent-500 to-accent-600' :
+                              'bg-gradient-to-br from-primary-500 to-primary-600'
+                            }`}>
+                              {postagem.usuario ? postagem.usuario.charAt(0).toUpperCase() : 'U'}
+                            </div>
+                          </Link>
+                        ) : (
+                          <div className={`w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-lg flex-shrink-0 shadow-soft ${
+                            postagem.tipo === 'emergencia' ? 'bg-gradient-to-br from-danger-500 to-danger-600' :
+                            postagem.tipo === 'alerta' ? 'bg-gradient-to-br from-warning-500 to-warning-600' :
+                            postagem.tipo === 'informacao' ? 'bg-gradient-to-br from-accent-500 to-accent-600' :
+                            'bg-gradient-to-br from-primary-500 to-primary-600'
+                          }`}>
+                            {postagem.usuario ? postagem.usuario.charAt(0).toUpperCase() : 'U'}
+                          </div>
+                        )}
                         
                         {/* Info do usuário */}
                         <div className="flex-1 min-w-0">
@@ -1660,9 +1676,21 @@ export default function Feed() {
                         ) : comentarios[postagem.id] && comentarios[postagem.id].length > 0 ? (
                           comentarios[postagem.id].map((comentario) => (
                             <div key={comentario.id} className="flex gap-3 p-4 bg-neutral-50 rounded-xl border border-neutral-200 hover:border-neutral-300 transition-colors">
-                              <div className="w-9 h-9 bg-gradient-accent rounded-full flex items-center justify-center text-white text-sm font-bold flex-shrink-0 shadow-sm">
-                                {comentario.usuario ? comentario.usuario.charAt(0).toUpperCase() : 'U'}
-                              </div>
+                              {/* Avatar - Clicável para ir ao perfil */}
+                              {comentario.username ? (
+                                <Link 
+                                  href={`/usuario/@${comentario.username}`}
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <div className="w-9 h-9 bg-gradient-accent rounded-full flex items-center justify-center text-white text-sm font-bold flex-shrink-0 shadow-sm cursor-pointer transition-all hover:scale-110 hover:shadow-md">
+                                    {comentario.usuario ? comentario.usuario.charAt(0).toUpperCase() : 'U'}
+                                  </div>
+                                </Link>
+                              ) : (
+                                <div className="w-9 h-9 bg-gradient-accent rounded-full flex items-center justify-center text-white text-sm font-bold flex-shrink-0 shadow-sm">
+                                  {comentario.usuario ? comentario.usuario.charAt(0).toUpperCase() : 'U'}
+                                </div>
+                              )}
                               <div className="flex-1 min-w-0">
                                 <div className="flex items-center justify-between mb-1.5">
                                   <div className="flex flex-col">

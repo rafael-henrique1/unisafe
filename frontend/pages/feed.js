@@ -474,29 +474,36 @@ export default function Feed() {
   }
 
   /**
-   * Formatar data para exibição
+   * Formatar data para exibição (igual ao perfil público)
    * @param {string} dataString - Data em formato ISO
    * @returns {string} - Data formatada
    */
   const formatarData = (dataString) => {
-    if (!dataString) return 'Agora mesmo';
+    if (!dataString) return 'Data inválida';
     
-    const data = new Date(dataString);
-    const agora = new Date();
-    const diffMs = agora - data;
-    const diffMinutos = Math.floor(diffMs / (1000 * 60));
-    const diffHoras = Math.floor(diffMs / (1000 * 60 * 60));
-    const diffDias = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-
-    if (diffMinutos < 1) return 'Agora mesmo';
-    if (diffMinutos < 60) return `${diffMinutos}min atrás`;
-    if (diffHoras < 24) return `${diffHoras}h atrás`;
-    if (diffDias < 7) return `${diffDias}d atrás`;
+    // Garante que a data seja interpretada como UTC
+    let dataUTC = dataString;
+    if (!dataString.endsWith('Z') && !dataString.includes('+')) {
+      dataUTC = dataString + 'Z';
+    }
     
-    return data.toLocaleDateString('pt-BR', {
+    const data = new Date(dataUTC);
+    
+    // Verifica se a data é válida
+    if (isNaN(data.getTime())) return 'Data inválida';
+    
+    // Ajusta manualmente para horário de Brasília (UTC-3)
+    // Subtrai 3 horas em milissegundos
+    const dataBrasilia = new Date(data.getTime() - (3 * 60 * 60 * 1000));
+    
+    // Formata a data
+    return dataBrasilia.toLocaleDateString('pt-BR', {
       day: '2-digit',
-      month: '2-digit',
+      month: 'short',
       year: 'numeric'
+    }) + ' às ' + dataBrasilia.toLocaleTimeString('pt-BR', {
+      hour: '2-digit',
+      minute: '2-digit'
     });
   }
 
@@ -1249,7 +1256,7 @@ export default function Feed() {
                           )}
                         </div>
                         <p className="text-sm text-gray-500">
-                          {formatarData(postagem.data)}
+                          {formatarData(postagem.criado_em)}
                         </p>
                       </div>
                     </div>

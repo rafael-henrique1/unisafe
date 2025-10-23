@@ -410,23 +410,31 @@ export default function PerfilPublico() {
    * Formata a data da postagem
    */
   const formatarDataPostagem = (data) => {
-    if (!data) return ''
-    const dataObj = new Date(data)
-    const agora = new Date()
-    const diffMs = agora - dataObj
-    const diffMins = Math.floor(diffMs / 60000)
-    const diffHoras = Math.floor(diffMs / 3600000)
-    const diffDias = Math.floor(diffMs / 86400000)
-
-    if (diffMins < 1) return 'Agora'
-    if (diffMins < 60) return `${diffMins} min atrás`
-    if (diffHoras < 24) return `${diffHoras}h atrás`
-    if (diffDias < 7) return `${diffDias}d atrás`
+    if (!data) return 'Data inválida'
     
-    return dataObj.toLocaleDateString('pt-BR', {
+    // Garante que a data seja interpretada como UTC
+    let dataUTC = data;
+    if (!data.endsWith('Z') && !data.includes('+')) {
+      dataUTC = data + 'Z';
+    }
+    
+    const dataObj = new Date(dataUTC)
+    
+    // Verifica se a data é válida
+    if (isNaN(dataObj.getTime())) return 'Data inválida'
+    
+    // Ajusta manualmente para horário de Brasília (UTC-3)
+    // Subtrai 3 horas em milissegundos
+    const dataBrasilia = new Date(dataObj.getTime() - (3 * 60 * 60 * 1000));
+    
+    // Formata a data
+    return dataBrasilia.toLocaleDateString('pt-BR', {
       day: '2-digit',
       month: 'short',
       year: 'numeric'
+    }) + ' às ' + dataBrasilia.toLocaleTimeString('pt-BR', {
+      hour: '2-digit',
+      minute: '2-digit'
     })
   }
 

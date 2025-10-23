@@ -115,7 +115,7 @@ router.get('/', async (req, res) => {
       localizacao: postagem.localizacao,
       usuario: postagem.usuario_nome,
       username: postagem.usuario_username,
-      data: formatarData(postagem.criado_em),
+      criado_em: postagem.criado_em, // ✅ Retorna data original para frontend formatar
       curtidas: parseInt(postagem.total_curtidas) || 0,
       comentarios: parseInt(postagem.total_comentarios) || 0,
       usuarioCurtiu: Boolean(postagem.usuario_curtiu)

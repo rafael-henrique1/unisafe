@@ -403,13 +403,19 @@ router.post('/:id/curtir', verificarAuth, async (req, res) => {
       
       console.log(`[CURTIR] ✅ Curtida adicionada - Total agora: ${totalCurtidas}`)
       
+      // Busca o nome do usuário que curtiu
+      const usuarioCurtiu = await db.query(
+        'SELECT nome FROM usuarios WHERE id = ?',
+        [usuarioId]
+      )
+      
       // Emite notificação privada para o autor (se não for ele mesmo)
       const ioInstance = getIO()
       emitirNovaCurtida(ioInstance, {
         postagemId: id,
         usuarioId,
         autorPostagemId,
-        nomeUsuario: req.usuario.nome
+        nomeUsuario: usuarioCurtiu[0]?.nome || req.usuario.nome || 'Alguém'
       })
       
       res.json({
@@ -493,6 +499,12 @@ router.post('/:id/comentarios', verificarAuth, [
 
     console.log(`✅ [COMENTAR] Comentário completo criado com sucesso`)
 
+    // Busca o nome e username do usuário que comentou
+    const usuarioComentou = await db.query(
+      'SELECT nome, username FROM usuarios WHERE id = ?',
+      [usuarioId]
+    )
+
     // Debug: Verifica se getIO() retorna io válido
     const ioInstance = getIO()
     console.log('[DEBUG] getIO():', ioInstance ? 'OK' : 'UNDEFINED')
@@ -504,8 +516,8 @@ router.post('/:id/comentarios', verificarAuth, [
       postagemId: id,
       usuarioId,
       autorPostagemId,
-      nomeUsuario: req.usuario.nome,
-      username: req.usuario.username,
+      nomeUsuario: usuarioComentou[0]?.nome || req.usuario.nome || 'Alguém',
+      username: usuarioComentou[0]?.username || req.usuario.username || 'anonimo',
       conteudo: novoComentario[0].conteudo
     })
     

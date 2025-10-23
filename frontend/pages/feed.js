@@ -46,6 +46,9 @@ export default function Feed() {
   const [buscandoUsuario, setBuscandoUsuario] = useState(false)
   const [erroNaBusca, setErroNaBusca] = useState('')
   
+  // Estado para filtro de postagens
+  const [filtroAtivo, setFiltroAtivo] = useState('todos') // 'todos', 'aviso', 'alerta', 'emergencia', 'informacao'
+  
   // Ref para manter a instância do socket
   const socketRef = useRef(null)
   
@@ -815,6 +818,17 @@ export default function Feed() {
   }
 
   /**
+   * Filtra as postagens baseado no tipo selecionado
+   * @returns {Array} - Postagens filtradas
+   */
+  const postagensFiltradasPorTipo = () => {
+    if (filtroAtivo === 'todos') {
+      return postagens
+    }
+    return postagens.filter(postagem => postagem.tipo === filtroAtivo)
+  }
+
+  /**
    * Retorna a cor da badge baseada no tipo da postagem
    * @param {string} tipo - Tipo da postagem
    * @returns {string} - Classes CSS para a cor
@@ -1323,6 +1337,80 @@ export default function Feed() {
                 Atualizar
               </button>
             </div>
+
+            {/* Filtros de postagens */}
+            <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-medium border border-neutral-200 p-4">
+              <div className="flex items-center gap-3 flex-wrap">
+                <span className="text-sm font-semibold text-neutral-700">Filtrar por:</span>
+                
+                {/* Botão Todos */}
+                <button
+                  onClick={() => setFiltroAtivo('todos')}
+                  className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all ${
+                    filtroAtivo === 'todos'
+                      ? 'bg-gradient-to-r from-neutral-600 to-neutral-700 text-white shadow-md'
+                      : 'bg-neutral-100 text-neutral-700 hover:bg-neutral-200'
+                  }`}
+                >
+                  📋 Todos
+                </button>
+
+                {/* Botão Aviso */}
+                <button
+                  onClick={() => setFiltroAtivo('aviso')}
+                  className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all ${
+                    filtroAtivo === 'aviso'
+                      ? 'bg-gradient-to-r from-primary-500 to-primary-600 text-white shadow-md'
+                      : 'bg-primary-50 text-primary-700 hover:bg-primary-100 border border-primary-200'
+                  }`}
+                >
+                  💡 Aviso
+                </button>
+
+                {/* Botão Alerta */}
+                <button
+                  onClick={() => setFiltroAtivo('alerta')}
+                  className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all ${
+                    filtroAtivo === 'alerta'
+                      ? 'bg-gradient-to-r from-warning-500 to-warning-600 text-white shadow-md'
+                      : 'bg-warning-50 text-warning-700 hover:bg-warning-100 border border-warning-200'
+                  }`}
+                >
+                  ⚠️ Alerta
+                </button>
+
+                {/* Botão Emergência */}
+                <button
+                  onClick={() => setFiltroAtivo('emergencia')}
+                  className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all ${
+                    filtroAtivo === 'emergencia'
+                      ? 'bg-gradient-to-r from-danger-500 to-danger-600 text-white shadow-md'
+                      : 'bg-danger-50 text-danger-700 hover:bg-danger-100 border border-danger-200'
+                  }`}
+                >
+                  🚨 Emergência
+                </button>
+
+                {/* Botão Informação */}
+                <button
+                  onClick={() => setFiltroAtivo('informacao')}
+                  className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all ${
+                    filtroAtivo === 'informacao'
+                      ? 'bg-gradient-to-r from-accent-500 to-accent-600 text-white shadow-md'
+                      : 'bg-accent-50 text-accent-700 hover:bg-accent-100 border border-accent-200'
+                  }`}
+                >
+                  ℹ️ Info
+                </button>
+
+                {/* Contador de resultados */}
+                {filtroAtivo !== 'todos' && (
+                  <span className="ml-auto text-sm text-neutral-600 font-medium">
+                    {postagensFiltradasPorTipo().length} {postagensFiltradasPorTipo().length === 1 ? 'postagem' : 'postagens'}
+                  </span>
+                )}
+              </div>
+            </div>
             
             {/* Exibir erro se houver */}
             {error && (
@@ -1379,9 +1467,35 @@ export default function Feed() {
                   Criar primeira postagem
                 </button>
               </div>
+            ) : postagensFiltradasPorTipo().length === 0 && filtroAtivo !== 'todos' ? (
+              // Mensagem quando filtro não retorna resultados
+              <div className="text-center py-20 bg-white/80 backdrop-blur-sm rounded-2xl shadow-medium border border-neutral-200">
+                <div className="w-24 h-24 mx-auto mb-6 bg-gradient-to-br from-neutral-100 to-neutral-200 rounded-full flex items-center justify-center">
+                  <svg className="w-12 h-12 text-neutral-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+                  </svg>
+                </div>
+                <h3 className="text-xl font-bold text-neutral-800 mb-2">
+                  Nenhuma postagem encontrada
+                </h3>
+                <p className="text-neutral-600 mb-6 max-w-md mx-auto">
+                  Não há postagens do tipo "{filtroAtivo === 'emergencia' ? 'Emergência' : 
+                                           filtroAtivo === 'alerta' ? 'Alerta' : 
+                                           filtroAtivo === 'aviso' ? 'Aviso' : 'Informação'}" no momento.
+                </p>
+                <button
+                  onClick={() => setFiltroAtivo('todos')}
+                  className="px-6 py-3 bg-gradient-to-r from-neutral-600 to-neutral-700 text-white font-semibold rounded-xl shadow-soft hover:shadow-medium transition-all hover:scale-105 active:scale-95 inline-flex items-center gap-2"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                  </svg>
+                  Ver todas as postagens
+                </button>
+              </div>
             ) : (
               // Lista de postagens com design moderno
-              Array.isArray(postagens) ? postagens.map((postagem, index) => (
+              Array.isArray(postagensFiltradasPorTipo()) ? postagensFiltradasPorTipo().map((postagem, index) => (
                 <div 
                   key={postagem.id || index} 
                   ref={(el) => {

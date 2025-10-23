@@ -18,6 +18,7 @@ const { Server } = require('socket.io') // ← Socket.IO para notificações em 
 const cors = require('cors')
 const helmet = require('helmet')
 const morgan = require('morgan')
+const path = require('path')
 const env = require('./config/env')
 const db = require('./config/database')
 const logger = require('./config/logger') // ← Winston Logger
@@ -67,6 +68,15 @@ const io = new Server(server, {
 
 app.use(express.json({ limit: '10mb' })) // Parser JSON para requisições
 app.use(express.urlencoded({ extended: true })) // Parser URL-encoded
+
+// Serve arquivos estáticos da pasta uploads (imagens de postagens)
+// Adiciona headers CORS manualmente para arquivos estáticos
+app.use('/uploads', (req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*'); // Permite todas as origens para imagens públicas
+  res.header('Access-Control-Allow-Methods', 'GET');
+  res.header('Cross-Origin-Resource-Policy', 'cross-origin');
+  next();
+}, express.static(path.join(__dirname, 'uploads')))
 
 // Torna Socket.IO disponível para todas as rotas
 app.set('io', io)

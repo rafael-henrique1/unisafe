@@ -21,6 +21,10 @@ export default function Feed() {
   const [novaPostagem, setNovaPostagem] = useState('')
   const [tipoPostagem, setTipoPostagem] = useState('aviso')
   const [enviandoPost, setEnviandoPost] = useState(false)
+  
+  // Estados para upload de imagem
+  const [imagemSelecionada, setImagemSelecionada] = useState(null)
+  const [previewImagem, setPreviewImagem] = useState(null)
 
   // Estados para controlar comentários
   const [comentariosExpandidos, setComentariosExpandidos] = useState({})
@@ -739,11 +743,14 @@ export default function Feed() {
         
         if (result.success && Array.isArray(result.data)) {
           // Mapeia os dados para garantir compatibilidade
-          const postagensFormatadas = result.data.map(p => ({
-            ...p,
-            curtidas: p.total_curtidas || p.curtidas || 0,
-            comentarios: p.total_comentarios || p.comentarios || 0
-          }))
+          const postagensFormatadas = result.data.map(p => {
+            console.log('Postagem ID:', p.id, 'imagem_url:', p.imagem_url); // Debug
+            return {
+              ...p,
+              curtidas: p.total_curtidas || p.curtidas || 0,
+              comentarios: p.total_comentarios || p.comentarios || 0
+            };
+          })
           setPostagens(postagensFormatadas)
         } else {
           console.error('Formato de resposta inválido:', result)
@@ -765,7 +772,44 @@ export default function Feed() {
   }
 
   /**
-   * Envia uma nova postagem
+   * Lida com a seleção de imagem
+   */
+  const handleImagemSelecionada = (e) => {
+    const file = e.target.files[0]
+    if (file) {
+      // Valida tipo de arquivo
+      if (!file.type.startsWith('image/')) {
+        alert('Por favor, selecione apenas arquivos de imagem')
+        return
+      }
+      
+      // Valida tamanho (5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        alert('A imagem deve ter no máximo 5MB')
+        return
+      }
+      
+      setImagemSelecionada(file)
+      
+      // Cria preview
+      const reader = new FileReader()
+      reader.onloadend = () => {
+        setPreviewImagem(reader.result)
+      }
+      reader.readAsDataURL(file)
+    }
+  }
+
+  /**
+   * Remove a imagem selecionada
+   */
+  const removerImagem = () => {
+    setImagemSelecionada(null)
+    setPreviewImagem(null)
+  }
+
+  /**
+   * Envia uma nova postagem (com ou sem imagem)
    * @param {Event} e - Evento de submit do formulário
    */
   const handleSubmitPost = async (e) => {
@@ -777,16 +821,21 @@ export default function Feed() {
       // Pega o token do localStorage (se houver)
       const token = localStorage.getItem('unisafe_token')
       
+      // Usa FormData para enviar arquivo + dados
+      const formData = new FormData()
+      formData.append('conteudo', novaPostagem)
+      formData.append('tipo', tipoPostagem)
+      if (imagemSelecionada) {
+        formData.append('imagem', imagemSelecionada)
+      }
+      
       const response = await fetch(endpoints.postar, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
           ...(token && { 'Authorization': `Bearer ${token}` })
+          // Não adiciona Content-Type - o browser define automaticamente para multipart/form-data
         },
-        body: JSON.stringify({
-          conteudo: novaPostagem,
-          tipo: tipoPostagem
-        })
+        body: formData
       })
 
       if (response.ok) {
@@ -794,6 +843,7 @@ export default function Feed() {
         if (result.success) {
           setNovaPostagem('')
           setTipoPostagem('aviso')
+          removerImagem() // Limpa imagem selecionada
           carregarPostagens() // Recarrega o feed
           // Feedback visual de sucesso
           alert('Postagem criada com sucesso!')
@@ -1288,6 +1338,49 @@ export default function Feed() {
                 </div>
               </div>
 
+              {/* Upload de imagem */}
+              <div>
+                <label htmlFor="imagem" className="block text-sm font-semibold text-neutral-700 mb-2 flex items-center gap-2">
+                  <svg className="w-5 h-5 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                  Adicionar imagem (opcional)
+                </label>
+                <input
+                  type="file"
+                  id="imagem"
+                  accept="image/*"
+                  onChange={handleImagemSelecionada}
+                  className="w-full px-4 py-3 border-2 border-neutral-200 rounded-xl focus:border-primary-500 focus:ring-4 focus:ring-primary-100 transition-all outline-none text-neutral-800 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100 file:cursor-pointer"
+                />
+                <p className="mt-1 text-xs text-neutral-500">
+                  Formatos aceitos: JPG, PNG, GIF, WebP • Tamanho máximo: 5MB
+                </p>
+
+                {/* Preview da imagem selecionada */}
+                {previewImagem && (
+                  <div className="mt-4 relative">
+                    <div className="relative rounded-xl overflow-hidden border-2 border-neutral-200 max-w-md">
+                      <img 
+                        src={previewImagem} 
+                        alt="Preview da imagem" 
+                        className="w-full h-auto"
+                      />
+                      <button
+                        type="button"
+                        onClick={removerImagem}
+                        className="absolute top-2 right-2 p-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-all shadow-lg hover:scale-105"
+                        title="Remover imagem"
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
               {/* Botão de enviar */}
               <div className="flex justify-end">
                 <button
@@ -1610,6 +1703,24 @@ export default function Feed() {
                         {postagem.conteudo || 'Conteúdo não disponível'}
                       </p>
                     </div>
+
+                    {/* Imagem da postagem (se houver) */}
+                    {postagem.imagem_url && (
+                      <div className="mb-4 rounded-xl overflow-hidden border border-neutral-200 shadow-sm hover:shadow-md transition-shadow">
+                        <img 
+                          src={`${API_URL}${postagem.imagem_url}`}
+                          alt="Imagem da postagem"
+                          className="w-full h-auto object-cover max-h-[500px]"
+                          onLoad={() => console.log('✅ Imagem carregada:', `${API_URL}${postagem.imagem_url}`)}
+                          onError={(e) => {
+                            console.error('❌ Erro ao carregar imagem:', `${API_URL}${postagem.imagem_url}`);
+                            console.error('Status da imagem:', e.target.complete, e.target.naturalWidth);
+                            e.target.style.display = 'none';
+                          }}
+                        />
+                      </div>
+                    )}
+                    {!postagem.imagem_url && console.log('Postagem', postagem.id, 'sem imagem_url')}
 
                     {/* Localização (se houver) */}
                     {postagem.localizacao && (

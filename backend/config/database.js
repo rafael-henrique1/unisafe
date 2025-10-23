@@ -80,6 +80,7 @@ async function createTables() {
         conteudo TEXT NOT NULL,
         categoria VARCHAR(50) DEFAULT 'informacao',
         localizacao VARCHAR(255),
+        imagem_url TEXT NULL,
         criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         ativo BOOLEAN DEFAULT TRUE,
         FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE,
@@ -88,6 +89,29 @@ async function createTables() {
         INDEX idx_criado_em (criado_em)
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
     `)
+    
+    // Migração: Adiciona coluna imagem_url se não existir
+    try {
+      const [columns] = await pool.execute(`
+        SELECT COLUMN_NAME 
+        FROM INFORMATION_SCHEMA.COLUMNS 
+        WHERE TABLE_SCHEMA = DATABASE() 
+        AND TABLE_NAME = 'postagens' 
+        AND COLUMN_NAME = 'imagem_url'
+      `)
+      
+      if (columns.length === 0) {
+        await pool.execute(`
+          ALTER TABLE postagens 
+          ADD COLUMN imagem_url TEXT NULL AFTER localizacao
+        `)
+        console.log('✅ Coluna imagem_url adicionada à tabela postagens')
+      }
+    } catch (err) {
+      if (!err.message.includes('Duplicate')) {
+        console.error('❌ Erro na migração de imagem_url:', err.message)
+      }
+    }
 
     // Tabela de curtidas
     await pool.execute(`

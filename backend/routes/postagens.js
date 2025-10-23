@@ -20,6 +20,7 @@ const { JWT_SECRET } = require('../config/env')
 const { emitirNovaPostagem, emitirNovaCurtida, emitirNovoComentario } = require('../config/socket')
 const { verificarAuth, verificarAuthOpcional } = require('../middlewares/auth')
 const logger = require('../config/logger')
+const upload = require('../config/upload') // ← Upload de imagens
 
 const router = express.Router()
 
@@ -74,6 +75,7 @@ router.get('/', async (req, res) => {
         p.conteudo,
         p.categoria as tipo,
         p.localizacao,
+        p.imagem_url,
         p.criado_em,
         u.nome as usuario_nome,
         u.username as usuario_username,
@@ -97,7 +99,7 @@ router.get('/', async (req, res) => {
     }
     
     query += ` 
-      GROUP BY p.id, p.titulo, p.conteudo, p.categoria, p.localizacao, p.criado_em, u.nome, u.username
+      GROUP BY p.id, p.titulo, p.conteudo, p.categoria, p.localizacao, p.imagem_url, p.criado_em, u.nome, u.username
       ORDER BY p.criado_em DESC 
       LIMIT ${limite_int} OFFSET ${offset}
     `
@@ -113,6 +115,7 @@ router.get('/', async (req, res) => {
       conteudo: postagem.conteudo,
       tipo: postagem.tipo,
       localizacao: postagem.localizacao,
+      imagem_url: postagem.imagem_url, // ← URL da imagem
       usuario: postagem.usuario_nome,
       username: postagem.usuario_username,
       criado_em: postagem.criado_em, // ✅ Retorna data original para frontend formatar
@@ -154,9 +157,9 @@ router.get('/', async (req, res) => {
 
 /**
  * POST /api/postagens
- * Cria uma nova postagem de segurança
+ * Cria uma nova postagem de segurança (com upload de imagem opcional)
  */
-router.post('/', verificarAuth, [
+router.post('/', verificarAuth, upload.single('imagem'), [
   body('conteudo').notEmpty().withMessage('Conteúdo é obrigatório'),
   body('tipo').isIn(['aviso', 'alerta', 'emergencia', 'informacao']).withMessage('Tipo inválido')
 ], async (req, res) => {
@@ -173,13 +176,19 @@ router.post('/', verificarAuth, [
 
     const { conteudo, tipo } = req.body
     const usuarioId = req.usuario.id
+    
+    // URL da imagem (se foi enviada)
+    const imagemUrl = req.file ? `/uploads/${req.file.filename}` : null
 
     console.log(`[CRIAR POSTAGEM] Usuário ID ${usuarioId} criando postagem tipo: ${tipo}`)
+    if (imagemUrl) {
+      console.log(`[CRIAR POSTAGEM] Com imagem: ${imagemUrl}`)
+    }
 
-    // Insere a nova postagem
+    // Insere a nova postagem com imagem
     const resultado = await db.query(
-      'INSERT INTO postagens (usuario_id, titulo, conteudo, categoria) VALUES (?, ?, ?, ?)',
-      [usuarioId, conteudo.substring(0, 50) + '...', conteudo, tipo]
+      'INSERT INTO postagens (usuario_id, titulo, conteudo, categoria, imagem_url) VALUES (?, ?, ?, ?, ?)',
+      [usuarioId, conteudo.substring(0, 50) + '...', conteudo, tipo, imagemUrl]
     )
 
     console.log(`✅ [CRIAR POSTAGEM] Postagem criada - ID: ${resultado.lastID}, Tipo: ${tipo}`)
@@ -191,6 +200,7 @@ router.post('/', verificarAuth, [
       usuario_id: usuarioId, // ✅ Adicionado para evitar auto-notificação
       conteudo,
       tipo,
+      imagem_url: imagemUrl,
       criado_em: new Date().toISOString()
     })
 
@@ -201,6 +211,7 @@ router.post('/', verificarAuth, [
         id: resultado.lastID,
         conteudo,
         categoria: tipo,
+        imagem_url: imagemUrl,
         usuario: req.usuario.nome,
         criado_em: new Date().toISOString()
       }

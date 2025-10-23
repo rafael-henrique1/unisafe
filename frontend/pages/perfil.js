@@ -637,11 +637,12 @@ export default function Perfil() {
   }
 
   /**
-   * useEffect para carregar pedidos pendentes ao montar o componente
-   * (para mostrar o badge mesmo sem entrar na aba)
+   * useEffect para carregar pedidos e amigos ao montar o componente
+   * (para mostrar os badges mesmo sem entrar nas abas)
    */
   useEffect(() => {
     carregarPedidos()
+    carregarAmigos()
   }, [])
 
   /**
@@ -743,11 +744,9 @@ export default function Perfil() {
               }`}
             >
               👥 Meus Amigos
-              {amigos.length > 0 && (
-                <span className="ml-2 bg-blue-100 text-blue-600 px-2 py-1 rounded-full text-xs">
-                  {amigos.length}
-                </span>
-              )}
+              <span className="ml-2 bg-blue-100 text-blue-600 px-2 py-1 rounded-full text-xs">
+                {amigos.length}
+              </span>
             </button>
             <button
               onClick={() => setAbaAtiva('pedidos')}

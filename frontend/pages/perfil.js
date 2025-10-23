@@ -1170,8 +1170,16 @@ export default function Perfil() {
                       )}
                       <div>
                         <h3 className="font-medium text-gray-900">{amigo.nome}</h3>
+                        {amigo.username && (
+                          <button
+                            onClick={() => router.push(`/usuario/${amigo.username}`)}
+                            className="text-sm text-blue-600 hover:text-blue-700 hover:underline transition"
+                          >
+                            @{amigo.username}
+                          </button>
+                        )}
                         {amigo.bio && (
-                          <p className="text-sm text-gray-600 line-clamp-1">{amigo.bio}</p>
+                          <p className="text-sm text-gray-600 line-clamp-1 mt-1">{amigo.bio}</p>
                         )}
                         <p className="text-xs text-gray-500 mt-1">
                           Amigos desde {new Date(amigo.amigos_desde).toLocaleDateString('pt-BR')}

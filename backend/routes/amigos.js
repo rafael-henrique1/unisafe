@@ -269,6 +269,7 @@ router.get('/lista/:id', verificarAuth, async (req, res) => {
       `SELECT 
         u.id,
         u.nome,
+        u.username,
         u.email,
         u.foto_perfil,
         u.bio,

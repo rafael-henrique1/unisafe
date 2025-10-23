@@ -30,6 +30,11 @@ export default function PerfilPublico() {
   // Estados de postagens
   const [postagens, setPostagens] = useState([])
   const [loadingPostagens, setLoadingPostagens] = useState(true)
+  
+  // Estados do modal de amigos
+  const [mostrarModalAmigos, setMostrarModalAmigos] = useState(false)
+  const [amigos, setAmigos] = useState([])
+  const [loadingAmigos, setLoadingAmigos] = useState(false)
 
   /**
    * Carrega o perfil público do usuário
@@ -143,6 +148,45 @@ export default function PerfilPublico() {
     } finally {
       setLoadingPostagens(false)
     }
+  }
+
+  /**
+   * Carrega a lista de amigos do usuário
+   */
+  const carregarAmigos = async () => {
+    if (!usuario?.id) return
+    
+    try {
+      setLoadingAmigos(true)
+      const token = localStorage.getItem('unisafe_token')
+      
+      const response = await fetch(`${API_URL}/api/amigos/lista/${usuario.id}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Cache-Control': 'no-cache'
+        }
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        setAmigos(data.data || [])
+      } else {
+        setAmigos([])
+      }
+    } catch (error) {
+      console.error('Erro ao carregar amigos:', error)
+      setAmigos([])
+    } finally {
+      setLoadingAmigos(false)
+    }
+  }
+
+  /**
+   * Abre o modal de amigos e carrega a lista
+   */
+  const abrirModalAmigos = () => {
+    setMostrarModalAmigos(true)
+    carregarAmigos()
   }
 
   /**
@@ -577,12 +621,15 @@ export default function PerfilPublico() {
                 </div>
                 <div className="text-sm text-gray-600 mt-1">Postagens</div>
               </div>
-              <div className="text-center">
+              <button
+                onClick={abrirModalAmigos}
+                className="text-center hover:bg-gray-50 rounded-lg transition cursor-pointer"
+              >
                 <div className="text-3xl font-bold text-purple-600">
                   {usuario?.estatisticas?.total_amigos || 0}
                 </div>
                 <div className="text-sm text-gray-600 mt-1">Amigos</div>
-              </div>
+              </button>
               <div className="text-center">
                 <div className="text-3xl font-bold text-green-600">
                   {usuario?.estatisticas?.total_comentarios || 0}
@@ -705,6 +752,114 @@ export default function PerfilPublico() {
           )}
         </div>
       </main>
+
+      {/* Modal de Amigos */}
+      {mostrarModalAmigos && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4"
+          onClick={() => setMostrarModalAmigos(false)}
+        >
+          <div 
+            className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[80vh] overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header do Modal */}
+            <div className="flex items-center justify-between p-6 border-b border-gray-200">
+              <div>
+                <h2 className="text-2xl font-bold text-gray-900">
+                  Amigos de @{usuario?.username}
+                </h2>
+                <p className="text-sm text-gray-500 mt-1">
+                  {amigos.length} {amigos.length === 1 ? 'amigo' : 'amigos'}
+                </p>
+              </div>
+              <button
+                onClick={() => setMostrarModalAmigos(false)}
+                className="text-gray-400 hover:text-gray-600 transition"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Conteúdo do Modal */}
+            <div className="overflow-y-auto max-h-[calc(80vh-100px)]">
+              {loadingAmigos ? (
+                <div className="flex items-center justify-center py-12">
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
+                  <p className="text-gray-600">Carregando amigos...</p>
+                </div>
+              ) : amigos.length === 0 ? (
+                <div className="text-center py-12">
+                  <div className="text-6xl mb-4">👥</div>
+                  <p className="text-gray-600 text-lg mb-2">Nenhum amigo ainda</p>
+                  <p className="text-sm text-gray-500">
+                    @{usuario?.username} ainda não tem amigos no UniSafe
+                  </p>
+                </div>
+              ) : (
+                <div className="divide-y divide-gray-100">
+                  {amigos.map((amigo) => (
+                    <div 
+                      key={amigo.id} 
+                      className="p-4 hover:bg-gray-50 transition flex items-center justify-between"
+                    >
+                      <div className="flex items-center space-x-4 flex-1">
+                        {amigo.foto_perfil ? (
+                          <img
+                            src={amigo.foto_perfil}
+                            alt={amigo.nome}
+                            className="w-12 h-12 rounded-full object-cover border-2 border-gray-200"
+                            onError={(e) => {
+                              e.target.onerror = null
+                              e.target.style.display = 'none'
+                              e.target.nextElementSibling.style.display = 'flex'
+                            }}
+                          />
+                        ) : null}
+                        <div 
+                          className={`w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-lg ${
+                            amigo.foto_perfil ? 'hidden' : ''
+                          }`}
+                        >
+                          {amigo.nome?.charAt(0)?.toUpperCase() || 'U'}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-medium text-gray-900">{amigo.nome}</h3>
+                          {amigo.username && (
+                            <button
+                              onClick={() => {
+                                setMostrarModalAmigos(false)
+                                router.push(`/usuario/${amigo.username}`)
+                              }}
+                              className="text-sm text-blue-600 hover:text-blue-700 hover:underline transition"
+                            >
+                              @{amigo.username}
+                            </button>
+                          )}
+                          {amigo.bio && (
+                            <p className="text-sm text-gray-600 line-clamp-1 mt-1">{amigo.bio}</p>
+                          )}
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => {
+                          setMostrarModalAmigos(false)
+                          router.push(`/usuario/${amigo.username}`)
+                        }}
+                        className="ml-4 px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+                      >
+                        Ver Perfil
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

@@ -1,26 +1,12 @@
 {
-  "version": 2,
-  "builds": [
+  "buildCommand": "cd frontend && npm install && npm run build",
+  "outputDirectory": "frontend/.next",
+  "installCommand": "npm install --prefix frontend",
+  "framework": "nextjs",
+  "rewrites": [
     {
-      "src": "frontend/package.json",
-      "use": "@vercel/next"
-    },
-    {
-      "src": "backend/server.js",
-      "use": "@vercel/node"
+      "source": "/api/:path*",
+      "destination": "https://seu-backend.railway.app/api/:path*"
     }
-  ],
-  "routes": [
-    {
-      "src": "/api/(.*)",
-      "dest": "backend/server.js"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "frontend/$1"
-    }
-  ],
-  "env": {
-    "NODE_ENV": "production"
-  }
+  ]
 }

@@ -1,0 +1,12 @@
+node_modules
+.env
+*.log
+logs/
+database/backup/
+.git
+.vscode
+.DS_Store
+coverage/
+*.test.js
+backend/uploads/*
+!backend/uploads/.gitkeep

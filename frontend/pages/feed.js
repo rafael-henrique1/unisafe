@@ -7,6 +7,27 @@ import { io } from 'socket.io-client' // ← Import Socket.IO client
 import API_URL from '../config/api' // ← URL da API para conexão Socket
 
 /**
+ * Helper para obter URL da imagem
+ * Usa Railway em produção ou quando localhost não tem a imagem
+ */
+const getImageUrl = (imagemUrl) => {
+  if (!imagemUrl) return null;
+  
+  // Se API_URL for localhost, assume que imagens antigas estão no Railway
+  // Novas imagens (com timestamp recente) tentam localhost primeiro
+  const RAILWAY_URL = 'https://unisafe-production.up.railway.app';
+  
+  // Se estiver em produção (Vercel), usa a URL da API configurada
+  if (!API_URL.includes('localhost')) {
+    return `${API_URL}${imagemUrl}`;
+  }
+  
+  // Em desenvolvimento local, sempre tenta Railway primeiro para imagens antigas
+  // (evita erros 404 desnecessários no console)
+  return `${RAILWAY_URL}${imagemUrl}`;
+}
+
+/**
  * Página do Feed de Postagens do UniSafe
  * Exibe as postagens de segurança da comunidade
  * Integrado com Socket.IO para notificações em tempo real
@@ -52,6 +73,9 @@ export default function Feed() {
   
   // Estado para filtro de postagens
   const [filtroAtivo, setFiltroAtivo] = useState('todos') // 'todos', 'aviso', 'alerta', 'emergencia', 'informacao'
+  
+  // Estado para controlar imagens que falharam ao carregar
+  const [imagensComErro, setImagensComErro] = useState(new Set())
   
   // Ref para manter a instância do socket
   const socketRef = useRef(null)
@@ -1704,23 +1728,28 @@ export default function Feed() {
                       </p>
                     </div>
 
-                    {/* Imagem da postagem (se houver) */}
-                    {postagem.imagem_url && (
-                      <div className="mb-4 rounded-xl overflow-hidden border border-neutral-200 shadow-sm hover:shadow-md transition-shadow">
+                    {/* Imagem da postagem (se houver e não tiver erro) */}
+                    {postagem.imagem_url && !imagensComErro.has(postagem.imagem_url) && (
+                      <div className="mb-4 rounded-xl overflow-hidden border border-neutral-200 shadow-sm hover:shadow-md transition-shadow bg-neutral-50">
                         <img 
-                          src={`${API_URL}${postagem.imagem_url}`}
+                          src={getImageUrl(postagem.imagem_url)}
                           alt="Imagem da postagem"
-                          className="w-full h-auto object-cover max-h-[500px]"
-                          onLoad={() => console.log('✅ Imagem carregada:', `${API_URL}${postagem.imagem_url}`)}
+                          className="w-full h-auto object-contain max-h-[600px]"
                           onError={(e) => {
-                            console.error('❌ Erro ao carregar imagem:', `${API_URL}${postagem.imagem_url}`);
-                            console.error('Status da imagem:', e.target.complete, e.target.naturalWidth);
-                            e.target.style.display = 'none';
+                            // Se a imagem não carregar, tenta o localhost (para imagens novas)
+                            if (!e.target.src.includes('localhost') && !e.target.dataset.triedLocalhost) {
+                              e.target.dataset.triedLocalhost = 'true';
+                              e.target.src = `http://localhost:5000${postagem.imagem_url}`;
+                            } else {
+                              // Marca como erro para não tentar carregar novamente
+                              setImagensComErro(prev => new Set([...prev, postagem.imagem_url]));
+                              e.target.style.display = 'none';
+                              e.target.parentElement.style.display = 'none';
+                            }
                           }}
                         />
                       </div>
                     )}
-                    {!postagem.imagem_url && console.log('Postagem', postagem.id, 'sem imagem_url')}
 
                     {/* Localização (se houver) */}
                     {postagem.localizacao && (

@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { useRouter } from 'next/router'
 import Head from 'next/head'
+import API_URL from '../../config/api'
 
 /**
  * Página de Sucesso do Login via Google OAuth
@@ -58,7 +59,7 @@ export default function LoginSuccess() {
       console.log('🔍 Buscando dados do usuário ID:', userId)
 
       // Busca dados completos do usuário pelo ID
-      const response = await fetch(`http://localhost:5000/api/usuarios/${userId}`, {
+      const response = await fetch(`${API_URL}/api/usuarios/${userId}`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,

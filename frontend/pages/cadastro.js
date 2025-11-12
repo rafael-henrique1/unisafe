@@ -719,7 +719,7 @@ export default function Cadastro() {
                 {/* Botão Google OAuth */}
                 <button
                   type="button"
-                  onClick={() => window.location.href = 'http://localhost:5000/api/auth/google'}
+                  onClick={() => window.location.href = endpoints.googleAuth}
                   className="w-full flex items-center justify-center gap-3 px-6 py-3.5 border-2 border-neutral-200 rounded-xl bg-white text-neutral-700 font-medium hover:bg-neutral-50 hover:border-neutral-300 focus:outline-none focus:ring-4 focus:ring-primary-100 transition-all hover:scale-[1.02] active:scale-[0.98] shadow-sm hover:shadow-soft"
                 >
                   <svg className="w-5 h-5" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">

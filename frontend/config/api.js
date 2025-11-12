@@ -5,6 +5,7 @@ export const endpoints = {
   base: API_URL,
   login: `${API_URL}/api/auth/login`,
   cadastro: `${API_URL}/api/auth/cadastro`,
+  googleAuth: `${API_URL}/api/auth/google`,
   usuarios: `${API_URL}/api/usuarios`,
   perfilPublico: (username) => `${API_URL}/api/usuarios/perfil/${username}`,
   postagens: `${API_URL}/api/postagens`,

@@ -39,6 +39,7 @@ export default function Feed() {
   const [postagens, setPostagens] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [tituloPostagem, setTituloPostagem] = useState('')
   const [novaPostagem, setNovaPostagem] = useState('')
   const [tipoPostagem, setTipoPostagem] = useState('aviso')
   const [enviandoPost, setEnviandoPost] = useState(false)
@@ -838,7 +839,7 @@ export default function Feed() {
    */
   const handleSubmitPost = async (e) => {
     e.preventDefault()
-    if (!novaPostagem.trim()) return
+    if (!tituloPostagem.trim() || !novaPostagem.trim()) return
 
     setEnviandoPost(true)
     try {
@@ -847,6 +848,7 @@ export default function Feed() {
       
       // Usa FormData para enviar arquivo + dados
       const formData = new FormData()
+      formData.append('titulo', tituloPostagem)
       formData.append('conteudo', novaPostagem)
       formData.append('tipo', tipoPostagem)
       if (imagemSelecionada) {
@@ -865,6 +867,7 @@ export default function Feed() {
       if (response.ok) {
         const result = await response.json()
         if (result.success) {
+          setTituloPostagem('')
           setNovaPostagem('')
           setTipoPostagem('aviso')
           removerImagem() // Limpa imagem selecionada
@@ -1347,12 +1350,35 @@ export default function Feed() {
                 </div>
               </div>
 
-              {/* Campo de texto da postagem */}
+              {/* Campo do título da postagem */}
               <div>
+                <label htmlFor="titulo" className="block text-sm font-semibold text-neutral-700 mb-2">
+                  Título da ocorrência
+                </label>
+                <input
+                  type="text"
+                  id="titulo"
+                  value={tituloPostagem}
+                  onChange={(e) => setTituloPostagem(e.target.value)}
+                  placeholder="Ex: Assalto na Rua Principal, Suspeito na área, Iluminação precária..."
+                  maxLength="100"
+                  className="w-full px-4 py-3 border-2 border-neutral-200 rounded-xl focus:border-primary-500 focus:ring-4 focus:ring-primary-100 transition-all outline-none text-neutral-800 placeholder-neutral-400 font-semibold"
+                />
+                <div className="mt-1 text-xs text-neutral-500 text-right">
+                  {tituloPostagem.length}/100 caracteres
+                </div>
+              </div>
+
+              {/* Campo de descrição da postagem */}
+              <div>
+                <label htmlFor="descricao" className="block text-sm font-semibold text-neutral-700 mb-2">
+                  Descrição da ocorrência
+                </label>
                 <textarea
+                  id="descricao"
                   value={novaPostagem}
                   onChange={(e) => setNovaPostagem(e.target.value)}
-                  placeholder="O que está acontecendo? Compartilhe informações importantes sobre segurança..."
+                  placeholder="Descreva o que aconteceu, quando, onde e outros detalhes importantes..."
                   rows="4"
                   className="w-full px-4 py-3 border-2 border-neutral-200 rounded-xl focus:border-primary-500 focus:ring-4 focus:ring-primary-100 transition-all outline-none resize-none text-neutral-800 placeholder-neutral-400"
                 />
@@ -1409,7 +1435,7 @@ export default function Feed() {
               <div className="flex justify-end">
                 <button
                   type="submit"
-                  disabled={enviandoPost || !novaPostagem.trim()}
+                  disabled={enviandoPost || !tituloPostagem.trim() || !novaPostagem.trim()}
                   className="px-6 py-3 bg-gradient-primary text-white font-semibold rounded-xl shadow-soft hover:shadow-medium transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed hover:scale-105 active:scale-95 flex items-center gap-2"
                 >
                   {enviandoPost ? (
@@ -1712,19 +1738,19 @@ export default function Feed() {
                       </div>
                     </div>
 
-                    {/* Título da postagem (se houver) */}
+                    {/* Título da postagem */}
                     {postagem.titulo && (
-                      <div className="mb-3">
-                        <h3 className="text-xl font-bold text-neutral-800">
+                      <div className="mb-3 pb-3 border-b-2 border-neutral-100">
+                        <h2 className="text-xl font-bold text-neutral-900 leading-tight">
                           {postagem.titulo}
-                        </h3>
+                        </h2>
                       </div>
                     )}
 
-                    {/* Conteúdo da postagem */}
+                    {/* Descrição da ocorrência */}
                     <div className="mb-4">
-                      <p className="text-neutral-700 leading-relaxed whitespace-pre-wrap text-sm">
-                        {postagem.conteudo || 'Conteúdo não disponível'}
+                      <p className="text-neutral-700 leading-relaxed whitespace-pre-wrap text-base">
+                        {postagem.conteudo || 'Descrição não disponível'}
                       </p>
                     </div>
 

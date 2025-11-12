@@ -160,6 +160,7 @@ router.get('/', async (req, res) => {
  * Cria uma nova postagem de segurança (com upload de imagem opcional)
  */
 router.post('/', verificarAuth, upload.single('imagem'), [
+  body('titulo').notEmpty().withMessage('Título é obrigatório'),
   body('conteudo').notEmpty().withMessage('Conteúdo é obrigatório'),
   body('tipo').isIn(['aviso', 'alerta', 'emergencia', 'informacao']).withMessage('Tipo inválido')
 ], async (req, res) => {
@@ -174,7 +175,7 @@ router.post('/', verificarAuth, upload.single('imagem'), [
       })
     }
 
-    const { conteudo, tipo } = req.body
+    const { titulo, conteudo, tipo } = req.body
     const usuarioId = req.usuario.id
     
     // URL da imagem (se foi enviada)
@@ -188,7 +189,7 @@ router.post('/', verificarAuth, upload.single('imagem'), [
     // Insere a nova postagem com imagem
     const resultado = await db.query(
       'INSERT INTO postagens (usuario_id, titulo, conteudo, categoria, imagem_url) VALUES (?, ?, ?, ?, ?)',
-      [usuarioId, conteudo.substring(0, 50) + '...', conteudo, tipo, imagemUrl]
+      [usuarioId, titulo, conteudo, tipo, imagemUrl]
     )
 
     console.log(`✅ [CRIAR POSTAGEM] Postagem criada - ID: ${resultado.lastID}, Tipo: ${tipo}`)
@@ -198,6 +199,7 @@ router.post('/', verificarAuth, upload.single('imagem'), [
       id: resultado.lastID,
       usuario: req.usuario.nome,
       usuario_id: usuarioId, // ✅ Adicionado para evitar auto-notificação
+      titulo,
       conteudo,
       tipo,
       imagem_url: imagemUrl,
